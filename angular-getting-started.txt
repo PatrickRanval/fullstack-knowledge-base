@@ -1,0 +1,21 @@
+Angular Getting Started
+
+OMG
+
+Just the install feels more complicated than anything that I've ever done on a computer. 
+
+Dev-Tools - "Okay, so here's how to draw a line." - Okay, whoa! Cool. I really feel like I'm internetting now!
+
+HTML - "Okay, so put 2 lines together and this is an angle." - Hmm, I've seen this around places. A little abstract, I don't really get it, but I've got faith that it'll make sense soon. 
+
+CSS - "Okay, so now put 3 lines together for to make a Triangle." - Whoah! A shape! This is crazy, I see how this could be useful now. I could totally build things with Triangles. 
+
+JavaScript - "Okay, so now put 4 lines together to make a Square." - Oh wow, it's getting serious now, but I'm following.  I can imagine so many cool things to make with Squares! 
+
+TypeScript - "Okay so now put 5 lines together and this is a Pentagon" - Hmmm... well okay, I feel like Squares added a lot of functionality, but I see how these Pentagons could be situationally useful. 
+
+Angular - "Okay, so now take 12 Pentagons and bind them together at arccos(-√5/5) radians from one another and now you had a Dodecahedron." - ...wat?  I didn't even know there was a 3d dimension and you want me to do what again? 
+
+C:\Users\patra\Google Drive\CODE LABS 2023\FE-Code-Labs-Github\FE-Code-Labs\Angular\Getting Started\my-first-app
+
+ng serve

@@ -1,0 +1,230 @@
+The Basics Angular
+
+My first question is, can I just copy and paste that first blank template project to make a new project?
+
+Apparently, yes.
+
+Also can I just change the folder name to make a new project?
+
+Apparently, yes. 
+
+New Path:
+
+"C:\Users\patra\Google Drive\CODE LABS 2023\FE-Code-Labs-Github\FE-Code-Labs\Angular\Basics\the-basics"
+
+ng serve
+
+http://localhost:4200/
+
+Okay, now we're ready to do some learnin. 
+
+##Angular Startup
+
+looks at main.ts which then loads app.module.ts, which then points to the app components and assembles... the app. 
+
+##Components are Important
+
+Components are like reusable blocks that you use to make a collage of code that does stuff. 
+
+##Creating a Component
+
+AppComponent is the root component
+
+Best practice is for component name to = folder name
+
+Each component should have its own folder
+
+Component is a TypeScript Class
+
+I have no idea what we just did, other than some of it looked like TypeScript
+
+##Understanding the Role of App Module
+
+Declerators. 
+
+Is the bootstrap referenced here different than bootstrap CSS?  I think so, yes. 
+
+Tell Angular that a component exists in the @NgModule
+
+VSCode seemed to add the import statement automatically...
+
+How the heck does this guy keep all this stuff straight in his head?
+
+##Using Custom Components
+
+I'm experiencing some inconsistency with the compiler updating the app... 
+...but it did. 
+
+##Creating Components with the CLI
+
+ng generate component {name}
+ng g c {name}
+
+from terminal within vscode.
+
+Oh God! Horrifying. 
+
+Nesting components. 
+
+##Working with Template Components
+
+Inline templates
+
+Default string expression with '' has TypeScript specific issue with wrapped lines...
+
+Instead use `` to compose multiline template strings.
+
+Components *need* a template. 
+
+##Working with Component Styles
+
+Okay, I think I'm following again. Style each component within its CSS file. 
+
+As with templates, you cannot combine inline styles with syle urls.
+
+Inline style must be an array, and then use `` for multiline styles. 
+
+##Fully Understand Component Selector
+
+It's very easy to break literally everything by changing 1 line of code. 
+
+Selecting by ID is not supported. 
+
+Typically using element selectors is best but selectors does support [attribute] and .class selectors.
+
+##Assignment 
+
+Okay, yay, I got it to work!
+
+##What is Databinding?
+
+That's what I'm saying. 
+
+"Communication"
+
+Output
+String Interpolation {{ data }}
+Property Binding [property]="data"
+
+Input
+Event Binding (event)="expression"
+
+Combination
+Two-way-Binding [(ngModule)]="data"
+
+##Property Binding
+
+OMG, there's so much. </whine>
+
+##String Interpolation
+
+{{ 'Any expression which resolves to a string goes here' }}
+
+Numbers are resolved as Strings. 
+
+If statements forbidden but Ternaries will work.
+
+##Property Binding
+
+Okay, I think I am following. 
+
+[]=""
+
+##Sting Interpolation vs. Property Binding
+
+So we're doing Property binding within the tag's properties, whereas String interpolation can go within the tag's content. 
+
+The expression has to resolve to what the property expects, such as a boolean etc. 
+
+String Interpolation does not work within Property Binding because of how Angular read expressions.
+
+##Event Binding
+
+()=""
+
+Okay, this is literally the first thing that's seemed easier with Angular
+
+As long as you can parse through where components are coming from and what has access to which components, this kind of makes sense. 
+
+##Passing and Using Data with Event Binding
+
+($event) data emitted by the associated event
+
+(<HTMLInputElement>event.target).value;
+
+^^^I don't really understand that.
+
+I guess it has to be explicitly declared... but I feel like I wouldn't know when that is or isn't the case.
+
+##Two-Way Databinding
+
+[()]
+
+Must use special directive "ngModel"
+
+Goes both ways, setting the variable value will display in the input box. 
+
+##Combining All Forms of Data-Binding
+
+Yes.
+
+##Assignment
+Welp...
+
+##Directives
+
+Directives are instructions within the DOM
+
+Directives can have templates or not. 
+
+##Using ngif/Built in Directives
+
+*ngIf requires star because structural directive
+
+Adding things to the DOM really adds things to the DOM
+
+##Enhancing ngIf with and Else
+
+I think I'm getting burnt out tonight. Still getting things to work, but having trouble comprehending what we're really doing.
+ 
+##Styling Elements Dynamically
+
+ngStyle
+
+[ngStyle] to bind to the property of this directive
+
+Oh, that was kind of fun.
+
+##Applying CSS Classes dynamically
+
+ngClass 
+
+[ngClass] adds a class if a condition is true
+
+##Outputting Lists with ngFor
+
+ngFor essentially behaves like a forEach() loop in base javascript
+
+##Assignment
+
+I'm not having fun yet. 
+
+New Line is not read as a space character, but visually it can appear so and it won't necessarily throw and error and that will REALLY mess up your debug and you'll spend 15 minutes trying to figure out why ngClass won't apply your CSS, but it's because there's no space between two of your statements REEEEEEEEEEEEEEEEEEEEE
+
+##Index with ngFor
+
+i = index (kind of like a reserved expression) 
+
+cool, so it is similar again to a for loop. 
+
+
+
+
+
+  
+
+
+
+
+
+
