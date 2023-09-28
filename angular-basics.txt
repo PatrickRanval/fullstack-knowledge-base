@@ -57,8 +57,8 @@ I'm experiencing some inconsistency with the compiler updating the app...
 
 ##Creating Components with the CLI
 
-ng generate component {name}
-ng g c {name}
+ng generate component name
+ng g c name
 
 from terminal within vscode.
 
