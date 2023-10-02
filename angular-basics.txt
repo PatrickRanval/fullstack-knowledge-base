@@ -1,5 +1,33 @@
 The Basics Angular
 
+In Terminal: 
+ng new angular-basics-demo --no-strict
+
+Angular Routing? No
+
+Stylesheet? CSS
+
+npm install --save bootstrap@4
+
+Point angular.json styles to bootstrap by adding this to the styles array:
+"node_modules/bootstrap/dist/css/bootstrap.min.css"
+
+Like so:
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "src/styles.css"
+            ],
+
+ls command?  cd command?
+
+ng serve --open
+
+delete contents of app.component.html
+
+
+
+
+
 My first question is, can I just copy and paste that first blank template project to make a new project?
 
 Apparently, yes.
@@ -19,6 +47,7 @@ http://localhost:4200/
 Okay, now we're ready to do some learnin. 
 
 ##Angular Startup
+
 
 looks at main.ts which then loads app.module.ts, which then points to the app components and assembles... the app. 
 

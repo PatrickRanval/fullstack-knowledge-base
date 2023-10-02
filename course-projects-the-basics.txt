@@ -1,0 +1,123 @@
+##Project Introduction
+
+##Planning the App
+
+Planning seems like a good idea.
+
+			[Root%]
+			[Header%]
+[Shopping List*] 			[Recipe Book*]
+[Shopping List%]			[Recipe List%]
+[Shopping List Edit%]			[Recipe Item%]
+[Ingredient$]				[Recipe Detail%]
+					[Recipe$]
+					
+* - Feature
+% - component
+$ - Model
+
+Unformatted text document was a dumb way to try and make a Diagram. Gonna stick to my yellow notepads I think.
+
+##Setting up the Application
+
+Man, I've had so much trouble getting bootstrap to load consistently. It seems like a dice roll whether or not I have problems with it in a project.  Reinstalling seems to fix it... sometimes. 
+
+I favor testing bootstrap with div.jumbotron because I think it's both the dumbest and most memorable bootstrap class name.
+
+##Creating the Components
+ 
+Nope... I'm gonna go ahead and let him show me how to structure this. I have only the dimmest idea of what I'm doing. 
+
+So manually creating we make the 
+
++new Folder
+
++new.component.ts File Here we import a Component, and then pass a javascript object to that Component inorder to configure it with a selector and a template. Using app-new prevents overwriting an existing selector.
+
+import { Component } from '@angular/core';
+
+@Component({
+	selecetor: 'app-new',
+	templateURL: 'new.component.html'
+})
+export class NewComponent {}
+
+Upon making the templateURL: one needs to create that file
+
++new.component.html
+
+And then put whatever HTML Template goes in there.
+
+>app.module.ts
+
+Doing this manually you now have to 
+import { NewComponent } from './new/new.component';
+
+but also add it to the declarations array within the @NgModule Object, like so:
+  declarations: [
+    AppComponent,
+    NewComponent
+  ],
+
+If you forget any of that, nothing will work. Test it by adding 
+<app-new></app-new>
+to the app.component.html page. 
+
+Oh thank God, not manually adding them. --skipTests true removes the testing file for convenienct
+
+ng generate component = ng g c
+ng g c my-component-name --skip-tests true
+
+Cool, and it just does all the tedious import export stuff for you.
+
+The default behavior of the CLI is to create components within the app folder but you can specify a path in the command like so, to create within a subdirectory:
+
+ng g c subdirectory/my-component-name --skip-tests true
+
+Actually if you do that and subdirectory doesn't exist it will even create it for you. 
+
+Holy Cats, that was a lot of Components. 
+
+##Using the Components
+The CLI kindly puts a string in the html file of 
+
+"component-name works!"
+
+Surfing these file references and tag pointing gets really tedious. 
+
+##Adding a Navigation Bar
+bootstrap3 stylings were not consistent with bootstrap4 rendering, clumsily translated the stylings
+
+##Creating a Recipe Model
+
+A model in this context is a TypeScript Class
+
+##Adding Content to Recipes
+
+vsCode imports the Recipe class upon referring to it in a component
+
+Really hating this deprecated Bootstrap class thing
+
+##Outputting a List of Recipes with ngFor
+
+String Interpolation
+Property Binding
+
+This one was kind of cool. 
+
+pull-right/left is now float-right/left in bootstrap 4.
+
+##Displaying Recipe Details 
+
+col-xs-12 is now simply col-12
+
+Dropdown menus work really differntly in bootstrap4, 
+
+##Shopping List Component
+
+
+
+
+
+ 
+
