@@ -1,0 +1,26 @@
+##Understanding Angular Error Messages
+
+You should open console when things aren't behaving correctly
+
+Look at the Line # identified.
+
+Look at what the error message is saying is the undefined target.
+
+Follow it back.
+
+See if there is a type issue.  For instance in the example, the software was trying to call .push on a variable that hadn't been initialized as an array. 
+
+##Debugging Code in the Browser Using Sourcemaps
+
+He has an issue with deleting the last server edgecase. 
+
+Browser Tools
+
+Chrome Dev Tools > Sources
+
+Shows the script sources.  Have been compiled, converted to javascript, optimized, and exported so the bundles may look funny.
+
+He's actually clicking through and watching the variables change in real time.  
+
+Under "webpack" you can directly access the typescript files. 
+ 

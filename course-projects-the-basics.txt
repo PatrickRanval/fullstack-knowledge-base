@@ -115,6 +115,53 @@ Dropdown menus work really differntly in bootstrap4,
 
 ##Shopping List Component
 
+Okay, following. 
+
+##Creating Ingredient Model
+
+This is shorthand 
+
+export class Ingredient {
+  constructor(
+    public name: string, 
+    public amount: number) {}
+}
+
+For this:
+
+export class Ingredient {
+	public name: string,
+	public amount: number
+
+	constructor(name: string, amount: number){
+		this.name = name;
+		this.amount = amount;
+}
+
+##Creating and Outputting Shopping List
+
+importing { Ingredient } to shopping-list.component.ts
+
+We had to build an empty constructor to get ingredients to implement.
+
+constructor() { }
+
+##Adding Shopping List Edit Section
+
+Personally read about Libraries vs. Frameworks. It seems like Frameworks are good if you are committed to building within the framework, but broadly libraries are more flexible.  A Framework is more like it's own platform with SOPs for adding modules and so on, whereas a library is an expanded set of predefined functions to expedite writing code. Projects are more easily transitioned with construction from libraries, but frameworks are more solid within their own bounds. 
+
+##Wrap Up Next Steps
+
+Cool.
+
+
+
+
+
+
+
+
+
 
 
 
