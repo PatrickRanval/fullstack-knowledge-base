@@ -1,0 +1,267 @@
+##Module Introduction
+
+I downloaded the sample project for this module. 
+
+I attempted to install, failed, then attempted to install with the --legacy-peer-deps argument, which succeeded. However ng serve then encounters a fatal error:
+
+- Generating browser application bundles...(node:17076) [DEP0111] DeprecationWarning: Access to process.binding('http_parser') is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)"
+
+Searching the error results in a StackOverflow post suggesting that it may be possible to subvert this error by installing a Node Version Manager tool and utilizing the version that this app was built for. Howver at this point I am concerned I will become lost in the weeds and lost valuable time chasing dated code. 
+
+Given that, I am making the executive decision to simply watch this series of videos rather than participate in the code along for this section.
+
+##Splitting Apps into Components
+
+Using *ngFor on the component tags to produce all the elements from an array that holds them. 
+
+##Property and Event Binding Overview
+
+So much of coding is just knowing what *can* be done. 
+
+We can emit our own events.
+
+##Binding to Custom Properties
+
+TypeScript syntax for defining an object {}
+
+Left side of equal signs assigns type
+Right side of equal signs assigns value
+
+*Decorator* 
+
+A decorator is a function that is attached to a class declaration, method, accessor, property, or parameter.  It takes the form of an expression which evaluates to a function which will be called at runtime with information about the declaration which was decorated. Like so:
+
+@decorator() declaredProperty
+
+OR
+
+@decorator
+class declaredClass {}
+
+The @Input() decorator is allowing a component property to be accessed from outside of the component.  Input must also be included in the import object from @angular/core statement at the top of the component which that class is being exported from...
+
+##Assigning an Alias to Custom Properties
+
+We are using "element" to describe the property within the component.  And alias passed into the @Input('here') statement, will change that bind-able property name to the text 'here'.
+
+This is what an alias is. It can be useful for clarifying the role of properties outside of their parent components.
+
+##Binding to Custom Events
+
+I am a bit confused with how he builds this functionality backwards. 
+
+So to the TypeScript file for the component from which we want to "emit" an event, we are importing { EventEmitter, Output } from @angular/core.
+
+We are then adding to the export class a *property* 
+
+export class example {
+ @Output() exampleProperty = new EventEmitter<{objectProp: string, objectPropTwo: number}>();
+
+EventEmitter<>()
+
+<> indicates a generic type. Between the angle brackets goes the sort of data we expect to receive. 
+
+() calls the EventEmitter constructor, which creates a new EventEmitter object. 
+
+@Output() allows us to pass the event out of this component, e.g. makes it listenable. 
+
+This syntax looks really easy to mess up.  
+
+Now within the same TypeScript file we have a method like
+
+onDoExample() {
+	this.exampleProperty.emit({
+	objectProp: this.objectProp, 
+	objectPropTwo: this.objectPropTwo
+	});
+}
+
+Now, back in our app.componet.html we are listening for this event we created.
+
+<app-example (exampleProperty)="onDoExample($event)"><app-example>
+
+(exampleProperty) listens for the custom event we are listening to. 
+
+="onDoExample($event)" executes that function when we get the event. 
+
+($event) is the data that is being passed into that function. 
+
+Okay... so now within the app.component.ts we need to build our object. 
+
+export class AppComponent {
+	exampleElements = [{type: 'example', objectProp: 'example property', objectPropTwo: 2}]
+
+onExampleDone(exampleData: {objectProp: string, objectPropTwo: number}) {
+	this.exampleElements.push({
+		type: 'example',
+		objectProp: this.objectProp,
+		objectPropTwo: this.objectPropTwo
+		});
+	}
+]
+
+...And that should work...
+
+I feel like his explanation was really backwards. I have transcribed it in the order that I think is sensible. 
+
+##Asigning an Alias to Custom Events
+
+@Output('here') can assign an alias to 'here' which is the name by which it will be listenabel.
+
+##Custom Property and Event Binding Summary
+
+"It gets more complicated."
+
+##Understanding View Encapsulation
+
+Styles in Angular only exist within the context of the components they belong to. That means a style that is added to the app.component.css WILL NOT affect the components that are summoned via <app-tags> inside the app-component.html file.  This is what is meant by encapsulation. 
+
+Style encapsulation is an Angular specific behavior enforced by Angular through witchery during compiling.  
+
+_ngcontent-ejo-# is an attribute you will see in the dev tools that relates to such witchery. 
+
+"shadowDOM" is a cool word that I don't know what means. 
+
+##More on View Encapsulation
+
+One can cast thy own enchantments on view encapsulation by 
+import { ViewEncapsulation } from '@angular/core';
+
+then adding to
+
+@Component({
+	encapsulation: ViewEncapsulation.None || .ShadowDom || .Emulated
+})
+
+.Emulated is the default behavior of encapsulation
+.None prevents witchery and makes elements of components inherit styles globally
+.ShadowDom (formerly .Native) which just sounds cool, but apparently behaves a lot like .Emulated
+
+##Using Local References in Templates
+
+References are the entire HTML element denoted with a #reference, and are only available within the html template *not* the TypeScript Code. 
+
+So he used it like:
+
+<input #nameReference> 
+
+And then when his event listener listens all like:
+
+(click)="someFunction(nameReference)"
+
+He could pass in the value from that input, but then that does over to the .ts file like 
+
+someFunction(nameReference: HTMLInputElement) {
+	name: nameReference.value
+}
+
+And now we just got the value from the HTML document into our TypeScript code, so we can do things with it. 
+
+
+##Getting Access to the Template and DOM with @ViewChild
+
+A decorator.  We're in the .ts file. Maybe denoted as @ViewChild('...', {static: true}) in angular8+
+
+import { ViewChild } from '@angular/core'
+
+@ViewChild()
+
+@ViewChild('selector') selector: ElementRef;
+
+'selector' represents the name of a local reference (alternatively you could pass a component type without the '' to get the first occurence of that type, but this is less commonly used). 
+Returns type ElementRef (a angular type we must import).
+
+someFunction(nameReference: HTMLInputElement) {
+	name: nameReference.value,
+	someContent: this.selector.nativeElement.value;
+}
+
+Which apparently works. A local reference fetched from ViewChild.  Don't do it backwards to set outputs. It works, but don't. 
+
+##Projecting Content into Components with ng-content
+
+<ng-content></ng-content>
+
+<app-another-element>
+A "hook" or directive that marks the place that content between an opening and closing tag in a different element should appear.  This is a projection, that in the case of this example would show the content of whatever-this-element.component.html is in another-element.component.html between those ng-content tags.  
+<app-another-element>
+
+Clear as mud?
+
+There are reasons you would want to use this for reusability.
+
+##Understanding the Component LifeCycle
+
+ngOnInit()
+
+A lifecycle hook. It has been removed (along with the constructor) from generated components since videos were made because they are not always needed. 
+
+ngOnChanges - first thing called, called everytime an @input is called
+ngOnInit - Called once component is initialized (after constructor technically) 
+ngDoCheck - Called everytime a change detection is run. Every check, even if nothing changes.
+ngAfterContentInit - Called after content (ng-content) has been projected to view
+ngAfterContentChecked - Called everytime the project content has been checked
+ngAfterViewInit- Called after the component's view and child views have been initialized (after render)
+ngAfterViewChecked - Called evey time the view and child views are checked
+ngOnDestroy - Called once the component is about to be destroyed (great place for cleanup)
+
+In theory...
+
+##Seeing Lifecycle Hooks in Practice
+
+These have to be imported.
+
+ngOnInit() {
+	console.log('ngOnChanges called')
+}
+
+A simple method to view when a lifecycle hook is called
+
+ngOnChanges('argument')
+
+is the only lifecycle hook method that takes an argument. 
+
+Uhhhh.... primatives and stuff. 
+
+ngOnChanges might be useful for doing stuff with old data before updated. 
+
+ngDoCheck runs *a lot* don't put resource intensive code here. 
+
+ngAfterContentInit - Does st
+
+ngAfterContentChecked 
+
+ngAfterViewInit
+
+ngAfterViewChecked 
+
+ngOnDestroy - Potentially very helpful.
+
+##Lifecycle Hooks and Template Access
+
+Where the lifecycle hook is in relation to the callstack affects what information can/will be pulled from it in accordance with the "order of operations" they execute by.
+
+##Getting Access to ng-content with @ContentChild
+
+Being perfectly honest, I'm not really sure I understand what we did here. 
+
+##Wrap-Up
+
+I learned a lot. I think. 
+
+##Assignment
+
+setInetrval()  emits a listenable event
+
+##Assignment: Components & Databinding
+
+I think Max should stick to Angular Development and forego a career in game design. This game isn't very good.
+
+
+
+
+
+
+
+
