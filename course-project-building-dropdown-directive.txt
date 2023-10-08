@@ -1,0 +1,32 @@
+##Building and Using a Dropdown Directive
+
+Bootstrap has the capability to do this with their javascript code, but we don't want to import that because we only want angular to be interacting with the DOM. 
+
+Navigate to the shared folder and add a directive. dropdown.directive.ts
+
+We could use CLI to build the boilerplate. 
+
+import {Directive, HostListener, HostBinding } from '@angular/core';
+
+@Directive({
+  selector: '[appDropdown]'
+})
+
+export class DropdownDirective {
+  @HostBinding('class.show') isOpen = false;
+
+  @HostListener('click') toggleOpen() {
+    this.isOpen = !this.isOpen;
+  }
+
+}
+
+In app.module.ts, import the new directive.
+
+import { DropdownDirective } from './shared/dropdown.directive';
+
+Then in whatever HTML file has a dropdown, we find the place where we woul attach the 'open' attribute to begin with.   
+
+attaching the "show" class to the div.  
+
+This should work, but doesn't. 

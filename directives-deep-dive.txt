@@ -1,0 +1,232 @@
+##Module Introduction
+
+Attribute vs. Structural
+
+Attribute Directivs only affect the element they're placed on.
+
+Structural Directives affect the DOM
+
+##ngFor and ngIf recap.
+
+These are Structural Directives and denoted with a *
+
+Only one structural directive can be place on an element. 
+
+However a sturctural directives can nest one another, for instance a <div *ngIf=""> encompassing a <li *ngFor="">.  That works. 
+
+##ngClass and ngStyle Recap
+
+These are attribute directives.  
+
+Binding like [ngClass]="{odd: variable % 2 !==0}" This assigns a CSS class defined as ".odd" to the tag included if the result of the expression indeed tests odd and returns true.  
+
+[ngStyle]="{backgroundColor: variable % 2 !== 0 ? 'yellow' : 'transparent'}
+
+Here a ternary operator directly influences the style element within the tag evaluating the expression and toggling between yellow and transparent depending on the result.  
+
+##Creating an Attribute Directive
+
+We are creating a basic-highlight.directive.ts file within it's own directory in the app folder. (This is for demo purposes, there's more practical ways to highlight things using basic CSS)
+
+import { Directive, OnInit } from '@angular/core';
+
+@Directive({
+	selector: '[appBasicHighlight]'
+})
+
+export class BasicHighlightDirective implements OnInit {
+	constructor(private elementRef: ElementRef) {
+	}
+
+	ngOnInit() {
+		this.elementRef.nativeElement.style.backgroundColor = 'green';
+	}
+}
+
+So here we import Directive, we summon the Directive decorator with @, and then we assign it a selector. The Selector goes in square brackets, which will allow us to use it without the square brackets elsewhere. Keep naming consistent. 
+
+Then we export it, and have it implement with the OnInit lifecycle hook so that it renders how we want it when the component initiates. We have to include the private elementRef: ElementRef inorder to gain access to the Element that it will be ammending. 
+
+Then we use the ngOnInit() method to grab the specific elementRef that we've brought in. It's nativeElement, it's style, then its background color. 
+
+Now we've gotta go use this thing somewhere. 
+
+Go inform angular, that there is a new Directive. import it and add it to the array of ngModule declarations.
+
+In app.module.ts:
+
+import { BasicHighlightDirective } from './basic-highlight/basic-highlight.directive';
+
+@ngModule({
+	declarations: [
+		AppComponent,
+		BasicHighlightDirective
+	],
+...
+})
+
+So go somewhere in the app like app.component.html
+
+<p appBasicHighlight> This text will now be highlighted. </p>
+
+Simple as that. It behaves like an attribute. 
+
+
+##Using the Renderer to Build a Better Attribute Directive
+
+What we did previously works, but is bad.  Angular can render templates without a DOM. Use case is somewhat advanced. Let's learn how to do it more correctly with the renderer. 
+
+ng generate directive better-highlight === ng g d better-highlight
+
+This will dump it in the app folder, so you may want to put it somewhere more orderly like a shared directives folder or some such. ng generate will automatically add it to the app.module.ts file, but you will need to adjust folder pathing manually if you organized it. ng g d will create the better-highlight.directive.ts boilerplate. 
+
+import { Directive, OnInit, ElementRef, Renderer2 } from '@angular/core';
+
+@Directive({
+	selector: '[appBetterHighlight]'
+})
+
+export class BetterHighlightDirective implements OnInit {
+	constructor(private elRef: ElementRef, private renderer: Renderer2) {}
+	
+	ngOnInit() {
+		this.renderer.setStyle(this.elRef.nativeElement, 'background-color', 'blue');
+	}
+}
+
+Supposedly this is simply. If I understand correctly, we got an ElementRef (elRef) and then using a renderer built in method, setStyle() passed 3 arugments, the Element Reference, the property we want to set, the value of that property. Additionally this could take something called 'flags' but we didn't add those here. 
+
+Elsewhere in the app, we can now use this directive in the same way.  
+
+<p appBetterHighlight> This text will now be highlighted. </p>
+
+Using the renderer is better than manipulating the DOM directly.  That's because you might be using "service workers" in apps that won't necessarily run in a browser. 
+
+##UsingHostListener to Listen to Host Events
+
+We're importing and adding the @HostListener decorator to export class within the better-highlight.directive.ts file.  We then add the mouseover() method to it like so:
+
+@HostListener('mouseenter') mouseover(eventData: Event) {
+	this.renderer.setStyle(this.elRef.nativeElement, 'background-color', 'blue');
+}
+
+Host Listener can take all the events available within the DOM. Here we used mouseenter.  You could also use custom events. The eventData is not necessary here but exists.  Likewise, adding a HostListener for mouseleave can undo this change, and the directive is now reactive. 
+
+@HostListener('mouseleave') mouseover(eventData: Event) {
+	this.renderer.setStyle(this.elRef.nativeElement, 'background-color', 'transparent');
+}
+
+##Using HostBinding to Bind Host Properties
+
+An even easier way of changing the background color. Start by importing and adding the @HostBinding decorator to the export class within the better-highlight.directive.ts file. 
+
+@HostBinding('style.backgroundColor') backgroundColor: 'string' = 'transparent';
+
+
+HostBinding is taking the name of a property that we can bind to. Here 'style.backgroundColor'  The use of camel case is important because this is a DOM property, which does not recognize the CSS - notation. Then we have the variable backgroundColor which takes a string (which should be valid in such a way to set style.backgroundColor property.  That makes the @HostListener statements even more concise, because they can simply set this variable as follows. 
+
+@HostListener('mouseleave') mouseover(eventData: Event) { 
+	this.backgroundColor = 'blue';
+}
+@HostListener('mouseleave') mouseover(eventData: Event) {
+	this.backgroundColor = 'transparent';
+}
+
+
+##Binding to Directive Properties
+	
+We're gonna make it so the user can change the color dynamically. 
+
+First we import/add @Input and ammend the file as so:
+
+@Input() defaultColor: string = 'transparent';
+@Input() highlightColor: string = 'blue';
+
+ngOnInit() {						//This is a small bug fix which prevents
+	this.backgroundColor = this.defaultColor	//the page from rendering without a value
+}							//for backgroundColor
+
+@HostListener('mouseleave') mouseover(eventData: Event) { 
+	this.backgroundColor = 'this.highlightColor';
+}
+@HostListener('mouseleave') mouseover(eventData: Event) {
+	this.backgroundColor = 'this.defaultColor';
+}
+
+With the @Input() decorator, we can grab values from outside.  Cool, so let's go ammend app.component.html with these @Input properties which we can use simple property binding on, as follows:
+
+<p appBetterHighlight [defaultColor] ="'yellow'" [highlightColor] = "'red'"> This text will now be highlighted. </p>
+
+
+We can now overwrite [defaultColor] and [highlightColor].
+
+But oh gosh, we can also bind to our own directives....  For instance, setting the 
+@Input('appBetterHighlight') passes that out as an alias, and makes it a bindable property, so 
+
+<p [appBetterHighlight] = "'red'" [defaultColor] ="'yellow'"> This text will now be highlighted. </p>
+
+Produces the same result. 
+
+There is a shorthand that works with property binding strings specifically, that one should know about... but maybe not use...
+
+defaultColor ="yellow"
+
+is the same as:
+
+[defaultColor] ="'yellow'"
+
+But could be confusing to me who has only the basest grasp on what we are doing in the firstplace. Just be aware it exists. 
+
+
+##What Happens behind the Scenes on Structural Directives
+
+The * denotes a structural directive, and helps the Angular compiler identify such directives. Behind the scenes it is assembling a <ng-template [ngIf]='example == 2'> tag to enclose whatever is receiving such a directive. So instead of *ngIf, it compiles to a property bound tag with [ngIf]. This can be written manually, but the *ng directives are more intuitive to use, and serve as kind of a QoL feature for writing in Angular. 
+
+
+##Building a Structural Directive
+
+Oh no... we can write our own structural directive. We're gonna call it "unless"  Using CLI:
+
+ng g d unless
+
+Now in unless.directive.ts:
+
+import { Directive, Input, TemplateRef, ViewContainerRef } from '@angular/core';
+
+@Directive({
+	selector: '[appUnless]'
+)]
+export class UnlessDirective {
+	@Input() set appUnless(condition: boolean) {
+		if(!condition) {
+			this.vcRef.createEmbeddedView(this.templateRef);
+		} else {
+			this.vcRef.clear();		
+	
+	constructor(private templateRef: TemplateRef<any>, private vcRef: ViewContainerRef) { }
+}}
+
+appUnless looks like a method, but it's actually a property that we're setting for @Input. It *must* share the same name as the selector in the @Directive. This other stuff we imported helps angular identify where this structural directive goes.  Now, we can use our directive in an html file it's imported to.
+
+<div *appUnless="onlyOdd">
+
+It's not clear whether we will use this often or at all, but now we know it exists. 
+
+
+##Understanding ngSwitch
+
+Somewhere, in a component.ts file:
+
+value = 10;
+
+Meanwhile... in a corresponding html file:
+
+<div [ngSwitch]="value">
+	<p *ngSwitchCase="5">Value is 5</p>
+	<p *ngSwitchCase="10">Value is 10</p>
+	<p *ngSwitchCase="100">Value is 100</p>
+	<p *ngSwitchDefault>Value is default</p>
+</div>
+
+Really handy, if you find yourself creating a horrible series of "if" statements. 
+ 

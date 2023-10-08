@@ -1,0 +1,210 @@
+##Adding Navigation with Event Binding and ngIf
+
+Attaching click listeners to toggle view.
+
+Doing this without dual monitors is awful. WHIIIIIIIIIIIINE
+
+Okay, so our first step is in the header.component.html file to listen for a click and call a method when we hear that click from the navbar links:
+
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="#" (click)="onSelect('recipe')">Recipes</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" (click)="onSelect('shopping-list')">Shopping List</a>
+      </li>
+    </ul>
+
+Then we need to go the the header.component.ts file and conjure that onSelect method. 
+
+importing EventEmitter, Output
+
+export class HeaderComponent {
+  @Output() featureSelected = new EventEmitter<string>();
+
+  onSelect(feature: string) {
+    this.featureSelected.emit(feature)
+  }
+
+}
+
+To Emit an event you need to be in the ts file, you need EventEmitter and Output, and then you need to call the Emit method on the variable decorated with @Output that was created from the built-in class of EventEmitter.
+
+In the app.component.html, we add this tag to the app-header.
+
+<app-header (featureSelected)="onNavigate($event)"></app-header>
+
+See that featureSelected was the custom event emitter we just built.  We gotta have an onNavigate function though, and that goes in the corresponding app.component.ts file:
+
+export class AppComponent {
+  loadedFeature = 'recipe';
+
+  onNavigate(feature:string) {
+    this.loadedFeature = feature;
+  }
+}
+
+Okay cool, but now we have to tell the app.component.html file what feature variable is going to refer to when our nav buttons are clicked. We do this with *ngIf
+
+      <app-recipes *ngIf="loadedFeature === 'recipe' "></app-recipes>
+      <app-shopping-list *ngIf="loadedFeature !== 'recipe'"></app-shopping-list>
+
+Nifty. Even though we could explicitly catch 'shopping-list' string, Max considers the !== 'recipe' a more robust solution which catches all other cases (although it's unclear to me how that would happen). 
+
+
+## Passing Recipe Data with Property Binding
+
+So we do some rearranging of our templates to isolate things better. 
+
+We're using an *ngFor loop to iterate through a list of recipes. But in the rearrangement, our recipe-item.component.html lost a reference to recipe.  We create that in it's .ts file with the @Input decorator (which must be imported). The following code declares recipe as a Recipe type. 
+
+export class RecipeItemComponent {
+  @Input() recipe: Recipe;
+
+} 
+
+Back in the recipe-list.component.html, we iterate through as follows:
+
+    <app-recipe-item *ngFor="let recipeElement of recipes"
+    [recipe]="recipeElement"></app-recipe-item>
+
+Note the property binding with [recipe].
+
+Hitting Save is important to eliminate compiling errors. 
+
+What is it with coders and being obsessed with making changes that apparently do nothing?
+
+
+##Passing Data with Event and Property Binding (Combined)
+
+We're adding a click listener on out recipe-item.component.html.
+
+<a href="#" class="list-group-item clearfix" (click)="onSelected()">
+
+Then we go and add an EventEmitter and Output classes on our corresponding.ts file.
+
+export class RecipeItemComponent {
+  @Input() recipe: Recipe;
+  @Output() recipeSelected = new EventEmitter<void>();
+
+  onSelected() {
+      this.recipeSelected.emit();
+  }
+}
+
+The event emitter here is type void.  It could be made to pass the recipe, but since we have that data from the link we are emitting our custom event recipeSelected from.... it would be redundant to do so. 
+
+Yeah Max, this sucks. From recipe-list.component.html
+
+    <app-recipe-item *ngFor="let recipeElement of recipes" [recipe]="recipeElement" 	(recipeSelected)="onRecipeSelected(recipeElement)"></app-recipe-item>
+
+Now back in the .ts file we have to conjure an onRecipeSelected method. But we need our imports EventEmitter and Output, so we come up with this nonsense:
+
+export class RecipeListComponent {
+  @Output() recipeWasSelected = new EventEmitter<Recipe>();
+	...
+
+  onRecipeSelected(recipe: Recipe) {
+    this.recipeWasSelected.emit(recipe);
+  }
+
+Yikes.  But WAIT! There's more. 
+
+In the recipes.component.html:
+
+    <app-recipe-list (recipeWasSelected)="selectedRecipe = $event"></app-recipe-list>
+
+That $event special tag always refers to the data that is passed with the event. But then in the .ts file, we have to impore the Recipe class and then make that selectedRecipe variable that we refer to there:
+
+export class RecipesComponent {
+  selectedRecipe: Recipe;
+}
+
+Still in recipes.component.html we're adding this:
+
+    <app-recipe-detail *ngIf="selectedRecipe; else infoText"></app-recipe-detail>
+    <ng-template #infoText>
+      <p>Please select a Recipe</p>
+    </ng-template>
+
+This *ngIf statement tells the component to display the selectedRecipe(Recipe) when one is selected (condition = true) else, display the text from the local #infoText reference placed on the <ng-template> tag. 
+
+Nooooo... we're not done..... WHIIIIIIIIIIIIIIIIIIINE. The good news is, my server is not showing errors yet. So that's cool. 
+
+In the recipe-detail.component.ts file, we're importing Input and Recipe, then making a variable to hold a Recipe again. Surprise surprise.
+
+export class RecipeDetailComponent {
+  @Input() recipe: Recipe;
+}
+
+This allows us to go back to the recipes.component.html, and add an additional property binding [recipe] to the app-recipe-detail tag:
+
+    <app-recipe-detail
+    *ngIf="selectedRecipe; else infoText"
+    [recipe]="selectedRecipe"></app-recipe-detail>
+
+And finally in recipe-details.component.html we can use our string interpolation and property binding to grab the passed up reference to the selected recipe, as follows:
+
+    <img
+    [src]="recipe.imagePath"
+    alt="{{ recipe.name }}"
+    class="img-responsive"
+    style="max-height: 300px;">
+
+	<h1>{{ recipe.name }}</h1>
+
+	{{ recipe.description }}
+
+	And so on. 
+
+Basically we used a chain of event emitters to ladder up references to their parent elements because that's the only way we know how to get data to propogate up so far. 
+
+Wow.
+
+##Allowing the User to Add Ingredients to the Shopping List
+
+We declared some local references to the form on shopping-edit.component.html like #this:
+
+        <input
+          type="text"
+          id="name"
+          class="form-control"
+          #nameInput>
+      </div>
+      <div class="col-sm-2 form-group">
+        <label for="name">Amount</label>
+        <input
+          type="number"
+          id="amount"
+          class="form-control"
+          #amountInput>
+
+In the corresponding .ts file, we prepared those for emission as a new Ingredient like so:
+
+export class ShoppingEditComponent {
+  @ViewChild('nameInput') nameInputRef: ElementRef;
+  @ViewChild('amountInput') amountInputRef: ElementRef;
+  @Output() ingredientAdded = new EventEmitter<Ingredient>();
+
+  onAddItem() {
+    const ingName = this.nameInputRef.nativeElement.value;
+    const ingAmount = this.amountInputRef.nativeElement.value;
+    const newIngredient = new Ingredient(ingName, ingAmount);
+    this.ingredientAdded.emit(newIngredient);
+  }
+
+}
+
+Then we listened for the custom event we created on the shopping-list.component.html:
+
+    <app-shopping-edit (ingredientAdded)="onIngredientAdded($event)"></app-shopping-edit>
+
+We use that to call this method and push the new Indgredient to the array in the shopping-list.component.ts file. 
+
+  onIngredientAdded(ingredient: Ingredient) {
+    this.ingredients.push(ingredient);
+
+  }
+
+Yay. Wow! I can't wait to rewrite all this tedium with the better code Max has promised us.  
+
