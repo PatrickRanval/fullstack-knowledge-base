@@ -1,0 +1,280 @@
+##Module Introduction
+
+A piece of your Angular app that acts as a central repository. 
+
+##Why would You Need Services
+
+Logging and Data Storage for Accounts.
+
+Services can be helpful when components communicate. 
+
+##Creating a Logging Service
+
+Choose a fitting place. 
+
+Perhaps in a shared folder or the app folder.
+
+Convention is service-name.servie.ts
+
+logging.service.ts
+
+A service is an ordinary typescript class
+
+export class LoggingService {
+	logStatusChange(status:string)	{
+		console.log('Server Status Changed, New Status: ' + status);
+	}
+}
+
+Now the code has been centralized within the service file. Navigate to a .ts file where it's needed. *don't* use the service by simply importing it and creating a new instance of the class and setting it like might be intuitive at this point. That will work, but is wrong. Angular has a better way.
+
+##Injecting the Logging Service into Components
+
+Hierarchal Injector
+
+A dependency injector injects an instance of the service class into the component automatically. First, navigate to the component .ts file. Add the LoggingService import. ALSO in the @Component decorator, add a providers: property with [LoggingService].  This essentially directs Angular to know how to set up this class. Then we will add a constructor as follows:
+
+import { LoggingService } from '../logging.service';
+
+@Component({
+	selector: '...',
+	templateURL: '...',
+	styleURL: '...',
+	providers: [LoggingService]
+
+export class NewAccountComponent {
+	@Output() accountAdded = new EventEmitter<{name:string, status:string}>();
+
+	constructor(private loggingService: LoggingService) {}
+
+	onCreateAccount(accountName: string, accountStatus: string) {
+		this.accountAdded.emit({
+			name: accountName,
+			status: accountStatus
+		})
+
+	this.loggingService.logStatusChange(accountStatus);
+
+}
+
+So here, the "private loggingService:" is just a variable name, but the "LoggingService" is the type and this is *very* important, as this informs Angular that we will be requiring an instance of the LoggingService.   Note that we then can call this.loggingService without having to manually create an instance of it, because Angular did that for us. This is better because it stays within the Angular ecosystem. There are other advantages that are beyond us. 
+
+Repeat this process on any component utilizing a given service.  DRY coding.  
+
+##Creating a Data Service
+
+Another typical use case. To store and manage data. 
+
+We're goign to call this one accounts.service.ts.
+
+export class AccountsService {
+	accounts = [
+		{
+		name: 'Mister Account',
+		staus: 'active'
+		},
+		{
+		name: 'Missus Account',
+		staus: 'inactive'
+		},
+		{
+		name: 'Babby Account',
+		staus: 'unknown'
+		}
+	];
+
+	addAccount(name:string, status:string) {
+		this.accounts.push({name: name, status: status})	
+	}
+
+	updateStatus(id:number, status:string) {
+		this.accounts[id].status = status;			
+	}
+}
+
+Back in the accounts.component.ts file, we need to add our newly assembled service
+
+import { AccountsService } from '../accounts.service';
+
+@Component({
+	selector: '...',
+	templateURL: '...',
+	styleURL: '...',
+	providers: [AccountsService]
+
+export class AppComponent implements OnInit {
+	accounts: {name:string, status:string}[] = [];
+
+	constructor(private accountsService:AccountsService) {}
+
+	ngOnInit() {
+		this.accounts = this.accountsService.accounts;
+	}
+}
+
+That code on the ngOnInit initializes the account and because arrays are, in javascript, a "refernce type" then that actually sets this.accounts to the actual array back in the accounts.service.ts file, which is to say a refernce to it. 
+
+Now for the sake of the example, we're going to update the new-account.component.ts file.  We can actually remove the Output and the EventEmitter from the import statement and the references to them.  To replace that functionality, we will inject our service.  Add the import, the provide, and the constructor as we've done before. Then we can update the onCreateAccount method as follows:
+
+onCreateAccount(accountName:string, accountStatus:string) {
+	this.accountsService.addAccount(accountName, accountStatus);
+	this.loggingService.logStatusChange(accountStatus);
+	}
+
+Then updating the account.component.ts file. We're again emoving Output here.  In this file, we already have the LoggingService, so we will simply add AccountsService injection to both the providers array and constructor as follows:
+
+@Component({
+	...,
+	providers: [LoggingService, AccountsService]
+	})
+
+export class AccountComponent {
+	@Input() account: {name:string, status:string};
+	@Input() id:number;
+
+	constructor (private loggingService: LoggingService,
+		     private accountsService: AccountsService) {}
+	
+	onSetTo(status:string) {
+		this.accountsService.updateStatus(this.id, status);
+		this.loggingService.logStatusChange(status);
+		}
+}
+
+
+This is set up wrong. Due to the following:
+
+
+##Understanding the Hierarchical Injector
+
+If we provide a service within our app, the Angular framework knows how to create an instance of the service for the component AND its child components. All the child components will receive THE SAME INSTANCE of the service. Instances do not propogate up. Only down. 
+
+AppModule injection it will be Application-wide.
+
+AppComponent injection it will be available for all components but not for other services. 
+
+Any-Other-Component injection it will only be available for this component and its child components.
+
+
+##How many Instances of a Service should there be? 
+
+So by providing the service in app.component.ts and new-account.component.ts and account.component.ts we actually create 3 instances because the creation of the instance in the child components overwrites the inherited instance. SO we should remove the AccountService from the providers array in the child components.  Leave the import statement. Leave the constructor.  
+
+
+##Injecting Services into Services. 
+
+Adding to app.module.ts
+
+@NgModule({
+	declarations: [...],
+	imports: [...],
+	providers: [AccountsService, LoggingService],
+	bootstrap: [...]
+})
+
+Adding AccountsService to AppModule providers array is the highest level of hierarchy we can go, and ensures that all pieces of the app receive the same instance of the service. Now it will function inside of other services. 
+
+Now we can and should remove AccountsService and LoggingService from the providers array within components (unless for some reason we would want separate instances).
+
+So putting LoggingService within accounts.service.ts
+
+
+import { Injectable } from '@angular/core';
+import { LoggingService } from './logging.service';
+
+@Injectable()
+	export class AccountsService {
+		accounts = []
+}
+
+
+
+Add @Injectable() decorator to the service *where* you want the other-service injected. The receiving service.  It is apparently modern forward looking best practice to add @Injectable() to the class which is injected (in this case logging.service.ts) but at time of video creation this is not a necessary step. 
+
+
+##Using the Services for Cross-Component Communication
+
+Much leaner now. 
+
+You can emit an event you set up within the service anywhere your service is present.  So for example in account.service.ts:
+
+import { ..., EventEmitter } from '@angular/core';
+
+@Injectable()
+	export class AccountsService {
+		accounts = []
+		
+		statusUpdated = new EventEmitter<string>();
+
+		constructor (...){}
+		...
+} 
+
+Now in the account.component.ts file, because we have emited this event from AccountService, we can ammend this class:
+
+export class AccountComponent {
+	@Input() account: {name:string, status:string};
+	@Input() id:number;
+
+	constructor (private loggingService: LoggingService,
+		     private accountsService: AccountsService) {}
+	
+	onSetTo(status:string) {
+		this.accountsService.updateStatus(this.id, status);
+		this.accountsService.statusUpdated.emit(status);
+		}
+}
+
+
+Now in new-account.component.ts we can listen to that emitted event:
+
+
+export class NewAccountComponent {
+
+	constructor(private loggingService: LoggingService,
+		    private accountsService: AccountsService) {
+		
+		this.accountsService.statusUpdated.subscribe(
+		(status:string) => alert('New Status: ' + status)
+		);
+		
+	}
+
+	onCreateAccount(accountName: string, accountStatus: string) {
+		this.accountService.addAccount(accountName, accountStatus);
+	}
+}
+
+
+Cross Component Communication, wow!
+
+
+##Angular 6+
+
+If you're using Angular 6+ (check your package.json to find out), you can provide application-wide services in a different way.
+
+Instead of adding a service class to the providers[] array in AppModule , you can set the following config in @Injectable() :
+
+@Injectable({providedIn: 'root'})
+export class MyService { ... }
+
+This is exactly the same as:
+
+export class MyService { ... }
+
+and
+
+import { MyService } from './path/to/my.service';
+@NgModule({
+    ...
+    providers: [MyService]
+})
+export class AppModule { ... }
+
+Using this new syntax is completely optional, the traditional syntax (using providers[] ) will still work. The "new syntax" does offer one advantage though: Services can be loaded lazily by Angular (behind the scenes) and redundant code can be removed automatically. This can lead to a better performance and loading speed - though this really only kicks in for bigger services and apps in general.
+
+You're basically adding an argument to @Injectable() that tells the compiler to instantiate it in the root. If I understand correctly....
+
+##Assignment			
+Yes.
+		
