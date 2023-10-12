@@ -1,0 +1,78 @@
+##Routing - Module Introduction
+
+Change the URL, but still stay on one page.  Or at least what is displayed on the apparent page that we are on. 
+
+
+##Why do we Need Routing
+
+Unclear.  Like we want the URL to be responsive but contain everything within our application. 
+
+
+##Setting Up and Loading Routes
+
+Start in the app.module.ts
+
+import { Routes, RouterModule } from '@angular/core';
+
+Between imports and ng module, create a constant of type Routes:
+
+const appRoutes:Routes = [
+	{ path: '', component: HomeComponent },
+	{ path: 'users', component: UsersComponent },
+	{ path: 'servers', component: ServersComponent },
+];
+
+appRoutes is holding an array of javascript objects.  The object has a property path: which takes a string that represents what the URL ammended to the domain will look like 
+(in this case: localhost:4200/users )
+The path is the string only, no / slash is taken here. That will break things. (Presumably). 
+
+The object takes another property component: this takes the name of the component that will be displayed.  
+
+Now we need to register the routes within the app. start by adding RouterModule in the @NgModule statement 
+
+@NgModule({
+	declarations: [...],
+	imports: [..., RouterModule.forRoot(appRoutes) ],
+	providers: [...],
+	bootstrap: [...]
+)}
+
+forRoot() is a method ammended to RouterModule that takes our variable appRoutes that contains the Routes we defined earlier.
+
+Now we need a place to render the currently selected component. Navigate to the relevant HTML page, in this case app.component.html 
+
+Our template is going to display just one of the Routes we defined at a time, but in the same space as the others. It will look something like this.
+
+...
+<div class='row'>
+	<div class='col-12'>
+		<router-outlet></router-outlet>
+	</div>
+</div>
+
+This <router-outlet></router-outlet> looks like a component but it's actually a directive.  This marks the place in the document where the Angular router will load the component of the currently selected Route. 
+
+
+##Navigating with Router Links
+
+Now we need to configure some Links. Let's look at an HTML page.  Where we have link tags... <a>  So you could just point the href to our newly created routes. And this works, but it refreshes the page with each link clicked. 
+
+<a href="/users">Users</a>
+
+Again, this works, but is not ideal because of the reloading behavior.  Our application state would be lost. This is not how it should be implemented. 
+
+The following is how you *should* do it.  First perform an href-ectomy of the page, and remove those from the <a> tags. We're going to use a special directive called routerLink within the <a> tag.
+
+<a routerLink="/">Home<a>    
+<a routerLink="/servers">Servers</a>
+
+Cool, that's better. We can also use property binding on the routerLink directive.  
+
+<a [routerLink]="['/users', 'login']>Login<a>
+
+That would assemble this URL: localhost:4200/users/login
+
+We will explore that more later. 
+
+Anyway, routerLink prevents default of refreshing the page, and then directs the application through the configured routes (provided they exist). It is faster, performs better, and doesn't change the application state.  Pretty slick.  
+
