@@ -12,7 +12,7 @@ Unclear.  Like we want the URL to be responsive but contain everything within ou
 
 Start in the app.module.ts
 
-import { Routes, RouterModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
 
 Between imports and ng module, create a constant of type Routes:
 
