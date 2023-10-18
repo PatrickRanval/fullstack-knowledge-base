@@ -683,3 +683,461 @@ Manually checking this in the OnInit function of the server and edit components 
 
 ##Protecting Routes with canActivate
 
+Creating a new file called
+
+auth-guard.service.ts
+
+import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+
+export class AuthGuardService implements CanActivate {
+	canActivate(
+		route: ActivatedRouteSnapshot, 
+		state: RouterStateSnapshot): Observable<boolean>  | Promise<boolean> | boolean {
+			
+
+}
+
+importing CanActivate forces us to have the canActivate method.  It takes two properties, route and state.  The arguments are these imports. Now canActivate will return something. Either 
+	An Observable which wraps a boolean, which is to say it resolves to true or false. Asynchronous
+	A Promise which wraps a boolean, which is to say it resolves to true or false. Asynchronous
+	A boolean which resolves synchronously
+
+Let's create our dummy service
+auth.service.ts
+
+export class AuthService {
+	loggedIn = false;
+
+	isAuthenticated() {
+		const promise = new Promise(		
+			(resolve, reject) => {			
+				setTimeout(() =>
+					resolve(this.loggedIn)
+				}, 800);
+			}
+		};
+		return promise;
+	}
+	
+	login() {
+		this.loggedIn = true;
+	}
+	logout() {
+		this.loggedIn = false;
+	}
+}
+
+Our dummy service simulates that it could take time to reach out to a server and check an authentication status with a setTimeOut function.  It is, of course itself a function with a resolve and reject state. Here is simply resolves the value of loggeIn after 800ms. And returns that promise.  Or returns the promise and then resolves the value more properly I suppose.  
+
+Back in 
+auth-guard.service.ts
+
+import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
+import { Objservable } from 'rxjs/Observable'; 
+import { Injectable } from '@angular/core';
+import { AuthService } from './auth.service'
+
+@Injectable()
+export class AuthGuardService implements CanActivate {
+	constructor(private authService:AuthService) {}
+
+	canActivate(
+		route: ActivatedRouteSnapshot, 
+		state: RouterStateSnapshot): Observable<boolean>  | Promise<boolean> | boolean {
+			this.isAuthenticated()
+				.then((authenticated: boolean) => {
+					if (authenticated) {
+						return true;
+						} else {
+							this.router.navigate(['/']);
+							}
+						}
+					);
+				}
+}
+
+
+So this canActivate function is receiving a promise and evaluating that promise for true or false. If true it sends the user where they want to go. If false, it directs them back home with the this.router.navigate(['/']); statement. 
+
+Now we gotta open back up our routing module. 
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', canActivate: [AuthGuardService] component: ServersComponent, children: [    
+		{ path: ':id', component: ServerComponent },	
+		{ path: ':id/edit', component: EditServerComponent }
+	]},
+	{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: '**', redirectTo: 'not-found'}   
+];
+
+So now servers and all child routes are only accessible if the AuthGuardService returns true. 
+
+REMEMBER
+app.module.ts
+
+@NgModule({
+
+	declarations: [...],
+	imports: [...],
+	providers: [..., AuthService, AuthGuardService],
+	bootstrap: [...]
+})
+
+
+##Protecting Child (Nested) Routes with canActivateChild
+
+We want to only want to protect a childcomponent rather than the entire /servers path.  We could do this by moving our canActivate argument to the children, but this is bad for reasons I don't really understand. So instead we're going to import canActivateChild
+
+Back in 
+auth-guard.service.ts
+
+import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router, CanActivateChild } from '@angular/router';
+import { Objservable } from 'rxjs/Observable'; 
+import { Injectable } from '@angular/core';
+import { AuthService } from './auth.service'
+
+@Injectable()
+export class AuthGuardService implements CanActivate, CanActivateChild {
+	constructor(private authService:AuthService) {}
+
+	canActivate(
+		route: ActivatedRouteSnapshot, 
+		state: RouterStateSnapshot): Observable<boolean>  | Promise<boolean> | boolean {
+			this.isAuthenticated()
+				.then((authenticated: boolean) => {
+					if (authenticated) {
+						return true;
+						} else {
+							this.router.navigate(['/']);
+							}
+						}
+					);
+				}
+
+	canActivateChild(
+		route: ActivatedRouteSnapshot, 
+		state: RouterStateSnapshot): Observable<boolean>  | Promise<boolean> | boolean {
+	return this.canActivate(route, state);
+	}
+}
+
+Back to Routing Module
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', 
+		canActivateChild: [AuthGuardService]                                   
+		component: ServersComponent, 
+		children: [    
+			{ path: ':id', component: ServerComponent },	
+			{ path: ':id/edit', component: EditServerComponent }
+	]},
+	{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: '**', redirectTo: 'not-found'}   
+];
+
+So now /servers works, but now the child routes are protected. 
+
+
+##Using a Fake Auth Service
+
+In the Home Component
+
+<button (click)="onLogin()">Login</button>
+<button (click)="onLogout()">Logout</button>
+
+Inject the AuthService in the .ts file
+
+...
+constructor(private router:Router, private authService:AuthService) {}
+
+onLogin() {
+	this.authService.login();
+}
+
+onLogout() {
+	this.authService.logout();
+}
+
+Now this works as expected. 
+
+
+##Controlling Navigation with canDeactivate
+
+Control of whether a user is allowed to leave a route. Maybe keeping user from accidentally navigating away. 
+
+
+Adding property edit-server.component.ts
+
+export class EditServerComponent implements OnInit {
+	...
+	changesSaved = false;
+
+constructor (private serversService:ServersService,
+		private route:ActivatedRouted,
+ 		private router: Router) { }
+
+...
+
+	onUpdateServer() {
+		this.serversService.updateServer(this.server.id, {name: this.serverName, stauts: this.serverStatus});
+		this.changesSaved = true;
+		this.router.navigate(['../'], {relativeTo: this.route});
+	} 
+
+When the user induces onUpdateServer, it changes the state of changesSaved, then navigates up a path. 
+
+A guard always needs to be a service. So we add
+
+can-deactivate-guard.service.ts
+
+import { Objservable } from 'rxjs/Observable'; 
+import { CanDeactivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router'
+
+export interface CanComponentDeactivate {
+	canDeactivate: () => Observable<boolean> | Promise<boolean> | boolean
+}
+
+export class CanDeactivateGuard implements CanDeactivate<CanComponentDeactivate> {
+	canDeactivate(component:CanComponentDeactivate,	//this method will be called by the angular router once we try to leave a route
+		currentRoute:ActivatedRouteSnapshot,
+		currentState:RouterStateSnapshot,
+		nextState?:RouterStateSnapshot):
+			Observable<boolean> | Promise<boolean> | boolean {
+				return component.canDeactivate();
+			}
+ 
+}
+
+I don't really understand this, but we need the interface. Now we're back in the Router Module:
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', 
+		canActivateChild: [AuthGuardService]                                   
+		component: ServersComponent, 
+		children: [    
+			{ path: ':id', component: ServerComponent },	
+			{ path: ':id/edit', component: EditServerComponent, canDeactivate: [CanDeactivateGuard] }
+	]},
+	{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: '**', redirectTo: '/not-found'}   
+];
+
+REMEMBER
+app.module.ts
+
+@NgModule({
+
+	declarations: [...],
+	imports: [...],
+	providers: [..., AuthService, AuthGuardService, CanDeactivateGuard],
+	bootstrap: [...]
+})
+
+
+And now, we need to go to the component where we will implement the interface we made.  Max keeps insisting that this is simple, but I have no idea what we are doing, tbqh:
+
+edit-server.component.ts
+
+export class EditServerComponent implements OnInit, CanComponentDeactivate {
+
+...
+...
+
+	canDeactivate():Observable<boolean> | Promise<boolean> | boolean {
+		if(!this.allowEdit) {
+			return true;
+		}
+		if (this.serverName !== this.server.name || this.serverStatus !== this.server.status) && !this.changesSaved) {
+			return confirm('Do you want to discard the changed?');
+		} else {
+			return true;
+		}
+	}
+} 
+
+I want to navigate home, but Max won't let me. Nooooo Max, I'm tired of guards......
+
+
+##Passing Static Data to a Route
+
+Starting with Static Data, we'll add an error-page.component
+error-page.component.html
+
+<h4>{{ errorMessage }}</h4>
+
+error-page.component.ts
+
+export class ErrorPageComponent implements OnInit {
+	errorMessage: string;
+...
+}
+
+
+Back to Routes Array
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', 
+		canActivateChild: [AuthGuardService]                                   
+		component: ServersComponent, 
+		children: [    
+			{ path: ':id', component: ServerComponent },	
+			{ path: ':id/edit', component: EditServerComponent, canDeactivate: [CanDeactivateGuard] }
+	]},
+	//{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: 'not-found', component: ErrorPageComponent, data: {message:'Page not found!'}},  
+	{ path: '**', redirectTo: '/not-found'}   
+];
+
+Now we will configure the error-page to get the data we appended to the Routes array
+error-page.component.ts
+
+...
+import { Activated Route, Data } from '@angular/router';
+
+export class ErrorPageComponent implements OnInit {
+	errorMessage: string;
+
+	constructor(private: route: ActivatedRoute) {}
+
+	ngOnInit {
+		// this.errorMessage = this.route.snapshot.data['message'];   
+
+		//Either works, but the following is sturdier to intrapage navigation:
+
+		this.route.data.subscribe(
+			(data:Data) => {
+				this.errorMessage = data['message'];
+			}
+	};
+}
+
+Because we've already bound this, it now works when a bad URL gets put in the browser. 
+
+
+##Resolving Dynamic Data with the resolve Guard
+
+Almost there. Almost done with Routing. I hope... my body... can... take it.  I definitely feel like we've done over 9000 lectures on this.
+
+We're going to simulate a server being loaded from a backend. We're going to need a Resolver, which is a service. It allows us to run code before a component is loaded.  This is different from canActivate in that it always renders the component, it is not a guard. This is for loading a component before displaying the route. 
+
+Creating:
+
+server-resolver.service.ts
+
+This is going to resolve to this object that we defined in the Resolve<> wrapper,
+
+import { Resolve, ActivatedRouteSnapshot, RouterStatessSnapshot } from '@angular/router';
+
+interface Server {
+	id: number;
+	name: string;
+	status: string;
+}
+
+@Injectable
+export class ServerResolver implements Resolve<{Server}> {
+
+	constructor(private serversService: ServersService) {}	
+     
+	resolve(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): 
+		Observable<Server> | Promise<Server> | Server {
+			return this.serverService.getServer(+route.params['id']);
+	}
+}
+
+REMEMBER
+app.module.ts
+
+@NgModule({
+
+	declarations: [...],
+	imports: [...],
+	providers: [..., AuthService, AuthGuardService, CanDeactivateGuard, ServerResolver],
+	bootstrap: [...]
+})
+
+Back to the Routes Array.  This is a little different because this doesn't take an array like the other guards so beware. It takes an object that in this case resolves into a server. 
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', 
+		canActivateChild: [AuthGuardService]                                   
+		component: ServersComponent, 
+		children: [    
+			{ path: ':id', component: ServerComponent, resolve: {server: ServerResolver} },	
+			{ path: ':id/edit', component: EditServerComponent, canDeactivate: [CanDeactivateGuard] }
+	]},
+	//{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: 'not-found', component: ErrorPageComponent, data: {message:'Page not found!'}},  
+	{ path: '**', redirectTo: '/not-found'}   
+];
+
+We can then go back to the server component file and then re structure ngOnInit() to utilize the ServerResolver we built. 
+server.component.ts 
+
+...
+
+ngOnInit() {
+	this.route.data
+		.subscribe(
+			(data: Data => {
+				this.server = data['server'];    //this 'server' name has to match what we defined in Routes resolve:{}
+		);	
+}
+
+Cool, we changed nothing visible again. 
+
+
+##Understanding Location Strategies
+
+OMG, soooooooo long Max. Is it so important? IS IT?!@!?
+
+The URL is always parsed by the server that handles your application first. This may be different than your local server. 
+
+You must configure your web server to route a 404 error to return the index.html file because that's the only way we can get to angular loading/routing.  If it doesn't it won't have the chance to initialize angular and then angular won't be able to use it's configuration to direct things. 
+
+This is an edge case for older browser support:
+
+In app-routing.module.ts
+
+...
+
+@NgModule({
+	imports: [
+		RouterModule.forRoot(appRoutes, {useHash: true})    //the default is false
+	],
+	...
+)}
+
+Adding useHash will enable Hash Mode routing. It informs the web server to only care about the portion of the URL that comes before the hash.
+
+localhost:4200/#/users
+
+That makes it such that this application will run on servers that don't return the index.html for 404 errors. Then Angular (the client) will parse the right side of the hash. 
+
+
+##Wrap Up
+
+So much routing. So much routing. 
+Oh gosh. More Routing in the course project. 
+Oh Thank God. 
+
