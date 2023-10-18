@@ -76,3 +76,610 @@ We will explore that more later.
 
 Anyway, routerLink prevents default of refreshing the page, and then directs the application through the configured routes (provided they exist). It is faster, performs better, and doesn't change the application state.  Pretty slick.  
 
+##Understanding Navigation Routes
+
+A relative path always appends the link to the end of the current page you're on, so linking to routerLink="servers" from localhost:4200/servers results in localhost:4200/servers/servers, which is bad. Interestingly, routerLink="../servers" works because it goes up one layer and then loads the page.  routerLink="/servers" also works.
+
+##Styling Active Router Links
+
+A CSS thing. routerLinkActive="" is a directive that adds a styling class to the link.  For instance routerLinkActive="active" adds the "active" class for links from the bootstrap.  
+
+There is a problem. This directive applies the class if the path is contained within the class. So if you the directive on a home "/" link, it will always mark that as active, and that's bad. To fix this add configuration to the directive like so. 
+
+<li routerLinkActive="active" routerLinkActiveOptions="{exact:true}">
+<a routerLink="/">Home</a>
+</li>
+
+Notice that is in an object. So the exact property configures the link to behave like you'd expect. 
+
+##Navigating Programmatically
+
+Whoa!  home.component.html
+
+<h4>Servers</h4>
+<p>Some Servers</p>
+<button (click)="onLoadServers">Load Servers</button>
+
+Now back in home.component.ts
+
+import {Router} from '@angular/router';
+
+exportclass HomeComponent implements OnInit {
+
+constructor(private: router: Router) {}
+
+...
+
+onLoadServers(){
+	//Some Complex Calculation
+	this.router.navigate(['/servers'])
+}
+
+So now our code triggers this event after the method is called on the click. 
+
+
+##Using Relative Paths in Programmatic Navigation 
+
+servers.component.html
+
+...
+<button (click)="onReload">Press Me</button>
+
+
+servers.component.ts
+
+import {Router, ActivatedRoute} from '@angular/router';
+import {ServersService} from './servers.servers';
+
+export class ServersComponent implements OnInit {
+	private servers: {id: number, name:string, status:string}[] = [];
+
+constructor(private:serversService:ServersService, 
+		private router: Router,
+		private route: ActivatedRoute) {
+}
+...
+
+onReload() {
+	this.router.navigate(['/servers'], {relativeTo: this.route} )
+}
+
+##########
+##########
+##########
+##########
+##########
+
+Neither '/servers' nor 'servers' causes an error in the navigate method because navigate doesn't "know" where it is, unlinke the routerLink directive.  By adding a second argument to it, you can configure the .navigate method.  Using ActivatedRoute will inject the currently active route.  Then using {relativeTo: this.route} to configure will resolve like we expect. 
+
+##Passing Parameters to Routes
+
+Seeking to load a single User dynamically.
+
+Adding parameters by adding a colon and any name, such as :id The : signals a dynamic component
+
+const appRoutes: Routes = [
+	...,
+	{path: 'users/:id', component: UserComponent},
+]
+
+We make a UserComponent (This is like my SeedOnShelf Component)
+
+Now, users/1 loads the newly constructed UserComponent.  Literally user/anything will load UserComponent at this point.
+
+
+##Fetching Route Parameters
+
+Within user.component.ts The ActivatedRoute object we have injected gives us access to the id passed in the URL => Selected User (text the video clarifies)
+
+
+
+import { ActivatedRoute } from '@angular/router';
+
+export class UserComponent implements OnInit {
+	user: {id:number, name:string};
+
+	constructor(private route: ActivatedRoute){}
+
+	ngOnInit() {
+		this.user = {
+			id: this.route.snapshot.params['id']
+			name:
+	}
+	
+
+The witchcraft here occurs in this line " id: this.route.snapshot.params['id'] " where we snatch the id of the user that we're loading from the URL that was passed in. Notice that we named that field id, which is the same as that 'users/:id' configuration from the router. That is not arbitrary. :id is the reference we grab with snapshot.  To grab the name as well, we can encode that into the URL as well, by going back to the router configuration  
+
+
+const appRoutes: Routes = [
+	...,
+	{path: 'users/:id/:name', component: UserComponent},
+]
+
+Now we can revisit and append. You can encode as many of these as you want into the URL
+
+	ngOnInit() {
+		this.user = {
+			id: this.route.snapshot.params['id']
+			name: this.route.snapshot.params['name']
+	}
+	
+And, visiting the user.component.html file, we can now output the fields of our UserComponent user object, with simple property binding.
+
+<p>Derp, user id is: {{ user.id }}</p>
+<p>Herp, user id is: {{user.name }}</p>
+
+This produces something that looks valid. The Users tab is even still active because our configured path contains /users, the route for that routerLink="active" directive.
+
+Now let's break this silly thing. 
+
+##Fetching Route Parameters Reactively
+
+An example of when this FAILS. WWithin the user.component.html 
+
+<a [routerLink]="['/users', 10, 'Anna']">Load Anna</a>
+
+Should make: localhost:4200/users/10/Anna
+
+And clicking Load Anna, actually succeeds in changeing the URL to that. BUT, the information displayed on the page is not. This is the default behavior, and not a bug.  The issue is if we're navigating here from the user component, angular does not rerender the component. To solve this, we need to go ammend our user.component.ts file, specifically the ngOnInit method:
+
+import { ActivatedRoute, Params } from '@angular/router';
+
+	ngOnInit() {
+		this.user = {
+			id: this.route.snapshot.params['id']
+			name: this.route.snapshot.params['name']
+	};
+	this.route.param
+		.subscribe(
+			(params: Params) => {
+				this.user.id = paramas['id'];
+				this.user.name = paramas['name'];
+			}
+		)
+}
+
+
+"params" is an observable. It is good for asynchronous tasks. An easy way to subscribe to an event that *might* happen in the future.  We need to .subscribe() to it, then pass in 3 arguments.  The first is a function to be called, here as an anonymous ES6 arrow function. The params subscription is fairly robust. 
+
+##An Important Note about Route Observables
+
+Angular cleans up the component after you leave the page.  For these built-in/boilerplate observables, it does this tidying for us.  The code above was fine. However as an exercise of understanding how things are working, and preparing for creating our own observables, this is what it looks like to manually remove a subscription to tidy a page. Theoretically you might want:
+
+*rxjs is the third party provider offering the Subscription observables module and methods and such. 
+
+
+import { ActivatedRoute, Params } from '@angular/router';
+import { Component, ngOnInit, ngOnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs/Subscription'};
+
+export class UserComponent implements OnInit, OnDestroy {
+	user: {id:number, name:string};
+	paramsSubscription: Subscription
+	
+	ngOnInit() {
+		this.user = {
+			id: this.route.snapshot.params['id']
+			name: this.route.snapshot.params['name']
+	};
+	this.paramasSubscription = this.route.param
+		.subscribe(
+			(params: Params) => {
+				this.user.id = paramas['id'];
+				this.user.name = paramas['name'];
+			}
+		);
+}
+
+	ngOnDestroy() {
+		this.paramsSubscription.unsubscribe();
+	}
+}
+
+Adding this manually does not harm our app. 
+
+##Passing Query Parameters and Fragments
+
+Query parameters are separated by a ? question mark in the URL, such as:
+
+localhost:4200/users/10/Anna?mode=editing
+
+? - query parameter
+& - seperating multiple query parameters
+# - jumping to a specific place in the app
+
+How do we pass these fragments? How do we use them? I sure don't know. But I will. 
+
+app.module.ts (or app.routes.ts)
+
+const appRoutes: Routes = [
+	{...},
+	 ...
+	{ path: 'servers/:id/edit', component: EditServerComponent }
+]
+
+In servers.component.html
+
+<a 
+	[routerLink]="['/servers', 5, 'edit']
+	[queryParams]="{allowEdit: 1}"
+	*ngFor="let server of servers">
+		Server Name
+</a>
+
+queryParams is a bindable property of the routerLink directive. Takes a javascript onbject. Above constructs
+
+localhost:4200/servers/5/edit?allowEdit=1
+
+Adding the fragment property:
+
+<a 
+	[routerLink]="['/servers', 5, 'edit']
+	[queryParams]="{allowEdit: 1}"
+	fragment="loading"
+	*ngFor="let server of servers">
+		{{ server.name }}
+</a>
+
+localhost:4200/servers/5/edit?allowEdit=1#loading
+
+Let's do it programatically. In our home.component.html
+
+<button (click)="onLoadServer(1)>Load Server 1</button>
+
+In home.component.ts
+
+onLoadServer(id:number) {
+	this.router.navigate(['servers', id, 'edit'], {queryParams: {allowEdit: '1'}, fragments: 'loading'});
+}
+
+So, the key thing here is that it's passing in the value 1 as the id parameter which is programatically influencing the URL we navigate to. 
+
+localhost:4200/servers/1/edit?allowEdit=1#loading
+
+
+##Retrieving Query Parameters and Fragments
+
+In the edit-server.component.ts file
+
+constructor (private serversService:ServersService,
+		private route:ActivatedRouted ) { }
+
+	ngOnInit() {
+			//Approach #1
+		console.log(this.route.snapshot.queryParams);
+		console.log(this.route.snapshot.fragment);
+			
+			//Approach #2
+		this.route.queryParams.subscribe();
+		this.route.fragment.subscribe();
+		
+		this.server = thisServersService.getServer(1);
+		this.serverName = this.server.name;
+		this.serverStatus = this.server.status;
+	}
+
+	onUpdateServer() {
+		this.serversService.updateServer(this.server.id, {name: this.serverName, stauts: this.serverStatus});
+	}
+
+Approach #1 is not reactive to changes to the query that might be made from the page. 
+Approach #2 will be reactive to changes that are made from within the page. 
+
+
+##Practicing and Some Common Gotchas. 
+
+users.component.html
+
+<a 
+	[routerLink]="['/users', user.id, user.name]"
+	
+	*ngFor="let user of users">
+		{{ user.name }}
+</a>
+
+We're able to dynamically access those pieces of the URL to be constructed by routerLink because of our *ngFor loop.  
+
+Let's do that again in the 
+servers.component.html
+
+<a 
+	[routerLink]="['/servers', server.id]
+	[queryParams]="{allowEdit: 1}"
+	fragment="loading"
+	*ngFor="let server of servers">
+		{{ server.name }}
+</a>
+
+Now in our routes array, we need to add a path to load just a single server:
+
+const appRoutes: Routes = [
+	{...},
+	...
+	{ path: 'servers/:id', component: ServerComponent },
+]
+
+So now in the singular 
+server.component.ts
+
+import { ActivatedRoute } from '@angular/router';
+
+	export class ServerComponent implements OnInit {
+		server: { id:number, name:string, status:string };
+		paramsSubscription: Subscription;
+
+	constructor(private serversService:ServersService,
+			private route: ActivatedRoute ) {}
+	
+	ngOnInit() {
+		const id = +this.route.snapshot.params['id'];  //Note the + that parses the id into a number
+		this.server = this.serversService.getServer(id);
+		this.route.params.subscribe(
+			(params: Params) => {
+			this.server = this.serversService.getServer(+params['id']);  //Again parse to number
+			}
+	}
+
+	onEdit() {
+		this.router.navigate(['edit'], {relativeTo: this.route})
+	}
+
+
+
+#######
+#######
+#######
+#######
+
+##Setting up Child (Nested) Routes
+
+We can consolidate our redundant link tree with child routes. Here is the Routes array as it is initially:
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent},
+	{ path: 'users/:id/:name', component: UserComponent},
+	{ path: 'servers', component: ServersComponent},
+	{ path: 'servers/:id', component: ServerComponent },	
+	{ path: 'servers/:id/edit', component: EditServerComponent },
+];
+
+Now let's make changes by adding the children: property. Children simply takes an array of Routes. 
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent},
+	{ path: 'users/:id/:name', component: UserComponent},
+	{ path: 'servers', component: ServersComponent, children: [
+			{ path: ':id', component: ServerComponent },	
+			{ path: ':id/edit', component: EditServerComponent }
+	]},
+];
+
+When adding children to the array, the parent will automatically prepend its path to the child routes, so in this case, we remove the redundant 'servers'.  However doing this we need to add an additional outlet because the <router-outlet> tag in the app.component.html is reserved for all routes on the top level.  The child route of servers here, needs a separate outlet.  They should be loaded nested into the 
+
+servers.component.html
+
+We remove the <app-edit-server> and <app-server> tage, and replace them with a:
+ 
+<router-outlet></router-outlet>
+
+Now there is a new hook for all child routes that are being loaded on the servers component. Doing the same for users:
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', component: ServersComponent, children: [
+		{ path: ':id', component: ServerComponent },	
+		{ path: ':id/edit', component: EditServerComponent }
+	]},
+];
+
+And likewise users.component.html we remove the <app-user> tag and add
+
+<router-outlet></router-outlet>
+
+To display the children of the users path. 
+
+#######
+#######
+#######
+#######
+
+Inorder to get this to work for SeedLibrary, it is my current understanding that I should
+
+	Revise Template for <app-seed-search> and <app-seed-shelf> to contain both sides of screen, so duplicate what's in app.component.html
+
+	Add a SeedFromSearchComponent to represent detail view from the API call.
+
+	Configure the Routes correctly:
+		{ path: 'shelf', component: SeedShelfComponent, children: [
+			{ path: ':id', component: SeedOnShelfComponent}]}
+
+	For Search:
+		{ path: 'search', component: SeedSearchComponent, children: [
+			{ path: ':id', component: SeedFromSearchComponent}]}
+
+	
+	In those revised templates for <app-seed-search> and <app-seed-shelf> add <router-outlet></router-outlet> that displays the child 		components, which is the detail view.
+
+	Probably set IDs to respond to a subscription via params.
+
+	Probably go ahead and make the Edit Seed On Shelf Component as a child route from the shelf component.
+		 { path: ':id/edit', component: EditSeedOnShelfComponent}
+
+	WHIIIIIIIIIIIIIIIIIIIIINE
+
+#######
+#######
+#######
+#######
+
+
+##Using Query Parameters Practice
+
+We're going to add a button to the 
+server.component.html
+
+<button (click="onEdit()")>Edit Server</button>
+
+server.component.ts (make sure we have private router:Router and imports)
+
+onEdit() {
+	this.router.navigate(['edit'], {relativeTo: this.route});
+}
+
+Here the relativeTo property is telling the navigate() method to append /edit to the currently loaded route. 
+
+On servers.component.html
+
+<a 
+	[routerLink]="['/servers', server.id]
+	[queryParams]="{allowEdit: server.id === 3 ? '1' : '0'}"  //Using ternary to set allowEdit property based on id
+	fragment="loading"
+	*ngFor="let server of servers">
+		{{ server.name }}
+</a>
+
+Now in edit-server.component.ts
+
+export class EditServerComponent implements OnInit {
+	server: {id:number, name:string, status:string};
+	serverName = '';
+	serverStatus = '';
+	allowEdit = false;     //adding this property initializing to false
+
+constructor (private serversService:ServersService,
+		private route:ActivatedRouted ) { }
+
+	ngOnInit() {
+
+		this.route.queryParams
+			.subscribe(
+				(queryParams:Params) => {
+					this.allowEdit = queryParams['allowEdit'] === '1' ? true : false;
+				};
+			)
+		this.route.fragment.subscribe();
+		
+		this.server = thisServersService.getServer(1);
+		this.serverName = this.server.name;
+		this.serverStatus = this.server.status;
+	}
+	
+
+Then we can output this with property binding and display it on the site to the user like so, within
+edit-server.component.html
+
+<h4 *ngIf="!allowEdit">You're not allowed to Edit.</h4>
+
+<div *ngIf="allowEdit">
+	...
+	The code for the Editor
+	...
+</div>
+
+This only displays the Editor code if the allowEdit property is true. 
+
+Except it's still broken. But we're gonna fix it next time, on Dragon Ball Z
+
+
+##Configuring the Handling of Query Parameters
+
+Our Query Parameters disappear when we navigate away from the single server component.  How do we preserve this information?  
+
+Simple.  
+server.component.ts
+
+	onEdit() {
+		this.router.navigate(['edit'], {relativeTo: this.route, queryParamsHandling: 'preserve'})
+	}
+
+We're adding the queryParamsHandling property to the configuration object.  This property takes a string. Values include 'merge' which would add new query params, and 'preserve' (which is what we want here). 'preserve' overrides the default behavior of dropping query params, and instead retains them as we navigate to the new route.
+
+
+##Redirecting with Wildcard Routes
+
+Yeah Max, I'm so tired of Routing. 
+
+We're going to make a page-not-found component, and an appropriate message in its html template. 
+
+const appRoutes: Routes = [
+	...	
+	{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: '**', redirectTo: 'not-found'}   
+	]
+
+This is the wildcard ** catches all bad URL. It's very important than this it the last route.
+
+I'm not sure why it's important to redirect instead of just directly load PageNotFoundComponent on any bad URL?
+
+
+##Redirection Path Matching
+
+FROM TEXT:
+
+In our example, we didn't encounter any issues when we tried to redirect the user. But that's not always the case when adding redirections.
+
+By default, Angular matches paths by prefix. That means, that the following route will match both /recipes and just /
+
+{ path: '', redirectTo: '/somewhere-else' }
+
+Actually, Angular will give you an error here, because that's a common gotcha: This route will now ALWAYS redirect you! Why?
+
+Since the default matching strategy is "prefix" , Angular checks if the path you entered in the URL does start with the path specified in the route. Of course every path starts with '' (Important: That's no whitespace, it's simply "nothing").
+
+To fix this behavior, you need to change the matching strategy to "full" :
+
+{ path: '', redirectTo: '/somewhere-else', pathMatch: 'full' }
+Now, you only get redirected, if the full path is '' (so only if you got NO other content in your path in this example).  
+
+
+##Outsouircing Route Configuration
+
+Nooooooo Max. Please not deeper in Routing...
+
+Oh, okay, so we're just gonna make 
+
+app-routing.module.ts 
+
+import { Routes, RouterModule } from '@angular/router
+import { ngModule } from '@angular/core'
+
+const appRoutes: Routes = [
+	{ path: '', component: Component},
+	{ path: 'users', component: UsersComponent, children: [
+		{ path: ':id/:name', component: UserComponent}
+	]},
+	{ path: 'servers', component: ServersComponent, children: [
+		{ path: ':id', component: ServerComponent },	
+		{ path: ':id/edit', component: EditServerComponent }
+	]},
+	{ path: 'not-found', component: PageNotFoundComponent},
+	{ path: '**', redirectTo: 'not-found'}   
+];
+
+@NgModule ({
+	imports: [
+		routerModule.forRoot(appRoutes)
+	],
+	exports: [RouterModule]    
+})
+
+export class AppRoutingModule {
+
+}
+
+Remember to reconfigure the app.module.ts to account for the outsourced routing module. And then import our new AppRoutingModule to the imports and the @NgModule imports array.
+
+
+##An Introduction to Guards
+
+You only want to give access to the single server and edit component if the user is logged in.  We're gonna dummy this in for the moment. We want to check this before any subroutes are accessed. 
+
+Manually checking this in the OnInit function of the server and edit components would become burdensome and scale poorly. We want to check this *before* loading the component and we can do so with this canActivate guard. 
+
+##Protecting Routes with canActivate
+
