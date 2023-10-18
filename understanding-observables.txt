@@ -1,0 +1,107 @@
+##Module Introduction
+
+A deeper dive into observables. Oh Gosh, it could be it's own course. Yikes. Please help Max.
+
+An Observable is a Data Source.
+
+Variously: User Input Events, Http Requests, Triggered in Code, ...
+
+Then there is a stream of data packages emitted by the Observable. 
+
+3 Types of Data Package:
+Handle Data
+Handle Error
+Handle Completion
+
+You write the code that gets executed depending on what type is received here.
+
+Then there is the Observer. Think subscribe() function.
+
+Observables kind of replace promises and callbacks in vanilla javascript.
+
+Angular very much embrace Observables.  
+
+
+##Analyzing Angular Observables
+
+Why is the audio quality here garbage?
+
+
+#####
+#####
+#####
+
+
+In order to follow along smoothly with the course examples, make sure you install RxJS v6 by running
+
+npm install --save rxjs@6
+In addition, also install the rxjs-compat package:
+
+npm install --save rxjs-compat
+
+Observables are constructs to which you subscribe to be informed about changes to data.
+
+We already used an observable in the routing course. That is the params to which we subscribe() in the user.component.ts
+
+You will not need to create observables in angular, they are already built in... but of course we're going to do it anyway. 
+
+
+##Getting Closer to the Core of Observables
+
+Observables are not really baked into base js or ts. That is why we add the RxJS package.  You can make sure it is in the dependencies object within the package.json file. If you don't see rxjs, you should install it. 
+
+Now, back in
+
+home.component.ts
+
+...
+import { interval } from 'rxjs'
+
+export class HomeComponent implements OnInit {
+	
+	constructor() {}
+
+	ngOnInit() {
+		interval(period: 1000).subscribe(next: count => {
+			console.log(count);	
+		})
+	}
+}
+
+Here we built an emitter not-quite-from-scratch that emits a value for count every second and logs it. That's cool, but something we should be aware of is that this observable keeps emitting even if we navigate away from the home page. That's not necessarily always the case (such as an http request, which simply fetches data once upon request), but here, and in other cases... they just keep going. This can cause a memory leak. 
+
+This doesn't maybe seem like a big deal until you navigate back to the home component and realize that a second count emitter is initialized, and would be each time the page is rendered. 
+
+So nip that nonsense by appending with ngOnDestroy();
+home.component.ts
+
+
+...
+import { interval, Subscription } from 'rxjs'
+
+export class HomeComponent implements OnInit, OnDestroy {
+	
+	private firstObsSubscription: Subscription	
+
+	constructor() {}
+
+	ngOnInit() {
+		this.firstObsSubscription = interval(period: 1000).subscribe(next: count => {
+			console.log(count);	
+		});
+	}
+	
+	ngOnDestroy(): void {
+		this.firstObsSubscription.unsubscribe();
+	}
+}
+
+Notice, that this actually unsubscribes onDestroy, and on re-navigating to the page will initialize firstObsSubscription to a new observable.  Functionally this means the value of count will not be stored by this configuration. It will start at 0 every time the page loads.  
+
+For observables provided by angular, packages, features, etc. such as the "params" observable we encountered earlier, angular is actually taking care of the cleanup behind the scenes, so no need to manually declare these unsubscribe() methods and so on.  However, when we are building our own, we need to do this, and it helps us understand _what is really happening_
+
+
+##Building a Custom Observable
+
+
+
