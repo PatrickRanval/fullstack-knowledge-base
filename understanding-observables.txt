@@ -103,5 +103,273 @@ For observables provided by angular, packages, features, etc. such as the "param
 
 ##Building a Custom Observable
 
+interval really wasn't a custom observable. More like a utility function. Let's rebuild it manually of course.
 
 
+import { Subscription, Observable } from 'rxjs'
+
+export class HomeComponent implements OnInit, OnDestroy {
+	
+	private firstObsSubscription: Subscription	
+
+	constructor() {}
+
+	ngOnInit() {
+		const customObservable = Observable.create(observer => {
+			let count = 0;
+			setInterval(handler:() => {
+				observer.next(count);
+				count++;
+			}, timeout: 1000);
+		});
+
+		this.firstObsSubscription = customObservable.subscribe(data => {
+			console.log(data);)
+	}
+	
+	ngOnDestroy(): void {
+		this.firstObsSubscription.unsubscribe();
+	}
+}
+
+This time we used the ordinary setInterval method, and is a real custom observable. Now we can move on to how to make errors. (Max, I'm pretty sure I'm more qualified to teach this next lesson than you. I produce tons of errors without even trying every time I code).
+
+
+##Errors & Completion
+
+Emitting new data is arguably the most important thing observables do. But then there's also error handling. HTTP requests can and do fail.  Let's fake-in an error when we exceed the number 3 on our count.   
+
+	ngOnInit() {
+		const customObservable = Observable.create(observer => {
+			let count = 0;
+			setInterval(handler:() => {
+				observer.next(count);
+					if (count > 3) {
+						observer.error(new Error('Count is greater than 3!'));
+						}
+				count++;
+			}, timeout: 1000);
+		});
+
+		this.firstObsSubscription = customObservable.subscribe(data => {
+			console.log(data);)
+	}, error => {
+		alert(error.message);
+	});
+}
+
+An observable stops emitting when it throws an error. So the count stops after the error is thrown. But we should handle Errors. Like we could alert the error to the user like we do here, but you could do lots of other things.
+
+But what about completing the observable?
+
+Completing can be a normal process in an observable. For instance an HTTP request would complete once it gets a respopnse from the server. For instance let's arbitrarily make our function complete at count 2.  You can also react to the completion of the function. We'll make a third anon function that logs completion. 
+
+	ngOnInit() {
+		const customObservable = Observable.create(observer => {
+			let count = 0;
+			setInterval(handler:() => {
+				observer.next(count);
+					if (count == 2) {
+						observer.complete();
+						}
+					if (count > 3) {
+						observer.error(new Error('Count is greater than 3!'));
+						}
+				count++;
+			}, timeout: 1000);
+		});
+
+		this.firstObsSubscription = customObservable.subscribe(data => {
+			console.log(data);)
+	}, error => {
+		alert(error.message);
+	}, () => {
+		console.log('Completed!');
+	});
+}
+
+So now this logs Completed! after 2, cool.  When an error cancels an observable that is different than the observable completing.  It will not call the complete function if the observables throws an error because it is canceled.
+
+
+##Observables & You!
+
+I understnad what happens inside of an observable. 
+
+It is very rare that you would ever build your own observable. Usually they come in libraries. 
+
+##Understanding Operators
+
+It's all nice what we learned.  One super important thing. 
+
+Operators
+
+Operators are the magic feature of the rxjs library. 
+
+Data Data Data -> Observable -> Data Data Data -> Subscription ->  Data -> Observer
+
+But wait... you might want to filter that data. And you could with functions, but there's a better way with operators, which looks like this:
+
+Data Data Data -> Observable -> Operators -> Data -> Subscription -> Data -> Observer
+
+A more concrete example. We're going to call a method called pipe()
+
+import { map } from 'rxjs/operators';
+...
+
+	ngOnInit() {
+		const customObservable = Observable.create(observer => {
+			let count = 0;
+			setInterval(handler:() => {
+				observer.next(count);
+					if (count == 2) {
+						observer.complete();
+						}
+					if (count > 3) {
+						observer.error(new Error('Count is greater than 3!'));
+						}
+				count++;
+			}, timeout: 1000);
+		});
+
+//		customIntervalObservable.pipe(map( (data:number) => {
+//			return 'Round' + (data + 1);
+//		}));
+
+		this.firstObsSubscription = customIntervalObservable.pipe(map( (data:number) => {	//we had to subscribe to the pipe data
+			return 'Round' + (data + 1);
+		})).subscribe(data => {
+			console.log(data);)
+	}, error => {
+		alert(error.message);
+	}, () => {
+		console.log('Completed!');
+	});
+}
+
+
+This is a contrived example. With pipe we can add 1 or more operators as arguments, and they execute after one another and do different stuff. Let's do a filter. 
+
+		this.firstObsSubscription = customIntervalObservable.pipe(filter(data => {
+			return data > 0; 							// A boolean expression
+			}), map( (data:number) => {	
+			return 'Round' + (data + 1);
+		})).subscribe(data => {
+			console.log(data);)
+
+This filter operator only passes data to map if that boolean returns true. 
+
+
+##Subjects
+
+One other important construct: subject. 
+
+Let's add a button to user.component.html
+
+<button>Activate</button>
+
+We want this button to display a line of text in the app.component.html
+
+...
+<p>Activated</p>
+...
+
+Let's use a service and an event emitter. 
+
+user.service.ts
+
+import { Injectable, EventEmitter } from '@angular/core';
+
+@Injectable({providedIn: 'root'})
+
+export class UserService {
+	activatedEmitter = new EventEmitter<boolean>();
+	}
+
+Now we inject that service into
+user.component.ts
+
+export class UserComponent implements OnInit {
+	id:number;
+
+	constructor(private route: ActivatedRoute, private userService UserService) {}
+
+	...
+
+	onActivate() {
+		this.userService.subscribe.activatedEmitter.emit(true);
+	}
+
+Now we can bind this to the button we made earlier
+user.component.html
+
+<button (click)="onActivate()">Activate</button>
+
+Now we inject that user service into
+app.component.ts
+ 
+export class AppComponent implements OnInit {
+	userActivated = false;	
+
+	constructor(private userService UserService) {}
+
+	ngOnInit() {
+		this.userService.activateEmitter.subscribe(didActivate => {
+			this.userActivated = didActivate;
+		});
+	}
+}
+
+app.component.html
+
+...
+<p *ngIf="userActivated">Activated</p>
+...
+
+Now this displays if userActivated is true. This is the old approach. But there's a better approach. 
+
+So let's revisit the User Service and import subject
+user.service.ts
+
+import { Subject } from 'rxjs';
+
+@Injectable({providedIn: 'root'})
+
+export class UserService {
+	activatedEmitter = new Subject<boolean>();
+	}
+
+This is similar to EventEmitter. But instead of .emit(), we call .next() A subject is more active than an observable because you can actively call next from outside.  Appending
+user.component.ts
+
+...
+	onActivate() {
+		this.userService.subscribe.activatedEmitter.next(true);
+	}
+...
+
+Using Subject is recomended over EventEmitter. They are more effecient behind the scenes. You should unsubscribe from subjects where you don't need them. 
+
+export class AppComponent implements OnInit {
+	userActivated = false;	
+	private activatedSub: Subscription;
+	
+	constructor(private userService UserService) {}
+
+	ngOnInit() {
+		this.userService.activateEmitter.subscribe(didActivate => {
+			this.userActivated = didActivate;
+		});
+	}
+	
+	ngOnDestroy():void {
+		this.activatedSub.unsubscribe();
+	}
+}
+
+One important note, if you're using @Output, you still need to use EventEmitters, but for cross-component communication, subjects are better. 
+
+##Wrap Up
+
+Yay!
+
+I can't believe we're only 1/3 done with the course...
