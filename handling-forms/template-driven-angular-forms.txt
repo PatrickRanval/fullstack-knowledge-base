@@ -1,0 +1,462 @@
+##Module Introduction
+
+Handling Forms with Angular is important because the SPA nature of Angular applications makes ordinary form submission behavior incorrect. Angular will help us handle forms. Angular has some powerful form tools. 
+
+
+##Why Do We Need Angular's Help?
+
+Angular's job is to help you retrieve values from the form and validate the form.  Those behaviors happen on the TypeScript file. 
+
+You will need a Javascript object to represent your form.  Angular gives you such a Javascript Object to represent this form. 
+
+
+##Template Driven vs. Reactive Approach
+
+Template Driven Approach - You set the form up in HTML and Angular will infer the JS template. 
+
+Reactive Approach - More avanceded. You create the .ts form, and then manually connect it to the HTML. Not as complicated as it sounds. 
+
+
+##An Example Form
+
+On the <form> tag, there is no action attribute pointing to a route, nor is there a method attribute specifying "post".  This is because we don't want to submit to a server through an HTTP request.  Likewise, nothing happens when the buttons on this form are pressed.  
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+      <form>
+        <div id="user-data">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" class="form-control">
+          </div>
+          <button class="btn btn-default" type="button">Suggest an Username</button>
+          <div class="form-group">
+            <label for="email">Mail</label>
+            <input type="email" id="email" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="secret">Secret Questions</label>
+          <select id="secret" class="form-control">
+            <option value="pet">Your first Pet?</option>
+            <option value="teacher">Your first teacher?</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+##Creating the Form and Registering the Controls
+
+Make sure in 
+app.module.ts
+
+import { FormsModule } from '@angular/forms';
+
+@NgModule({
+...
+imports: [
+	FormsModule,
+	...],
+...})
+
+This import is needed for the template driven approach to work.  This may already be present in a CLI generated project. 
+
+With this module, Angular will already generate your JavaScript representation of the form after detecting a form present in HTML. However, you can't see it yet. Angular will *not* automatically detect you inputs from the above form.  That's because you might not want to store everything in the form to the JS object. 
+
+Controls will still need to be registered manually. 
+
+We're going to tell Angular how our form will look, by adding ngModel and name=""
+
+<input 
+	type="text" 
+	id="username" 
+	class="form-control"
+	ngModel
+	name="username">
+
+The ngModel directive tells Angular that this input is a control for the form.  name="" is a default html property, but is what angular sets the template control name from, so we need it here.  
+
+<input 
+	type="email" 
+	id="email" 
+	class="form-control"
+	ngModel
+	name="email">
+
+Here, select bahaves the same way. 
+
+<select 
+	id="secret" 
+	class="form-control"
+	ngModel
+	name="secret">
+
+
+##Submitting and Using the Form
+
+We're going to play and create an onSubmit() method in
+app.component.ts
+
+
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  suggestUserName() {
+    const suggestedName = 'Superuser';
+
+onSubmit() {
+	
+}
+  }
+}
+
+We're got to call this method from the HTML template. You might think the submit button would be a good place, but that triggers the default HTML behavior, and that is bad. So we actually place a directive in the form element itself via ngSubmit like so:
+
+<form (ngSubmit)="onSubmit()">
+
+So that works, but we want to see the template.  To do that, we can reference the form itself, then pass it into our onSubmit method, and log what we get.  
+
+<form (ngSubmit)="onSubmit(f)" #f >
+//
+onSubmit(form:HTMLFormElement) {
+	console.log(form);	
+}
+
+You can now see the form object printed in the console. But it's quite what we went. So we'll do something even hackier by setting the local reference to ngForm.  This looks stupid, but it's apprently the default method of doing this. 
+
+<form (ngSubmit)="onSubmit(f)" #f="ngForm" >
+
+//
+import { NgForm } from '@angular/forms';
+
+onSubmit(form:ngForm) {
+	console.log(form);	
+}
+
+And now we get the ngForm itself.  And it's kind of crazy full of properties, but we do within the value: property see our names we set, with the corresponding values. Wild. 
+
+
+##Understanding the Form State
+
+Most of the properties in this object should be self explanatory. 
+
+"dirty" means that things have been typed into the forms. 
+"touched" means that things have been clicked into. 
+
+These properties can be helpful.  Supposedly. 
+
+
+##Accessing the Form with @ViewChild. 
+
+There is sort of another way to access form data with @ViewChild.  Here is that alternative approach. 
+
+import { Component, ViewChild } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+@ViewChild('f') signupForm:NgForm;
+
+  suggestUserName() {
+    const suggestedName = 'Superuser';
+
+onSubmit() {
+	console.log(this.signupForm);
+}
+  }
+}
+
+
+Actually gives us the same form, and can be useful for viewing the form before the data has been submitted.  This is a valid and situationally useful means of getting access to the form. 
+
+
+##Adding Validation to check User Input
+
+The front end can always be tricked, so it's important to validate on the server. Nevertheless the User Experience can be made better by validating some of this on the front end. For instance, adding "required" attribute. 
+
+<input 
+	type="email" 
+	id="email" 
+	class="form-control"
+	ngModel
+	name="email"
+	required>
+
+Now for email, you can actually add a special directive "email" that looks like an attribute. Angular is performing the asinine data sanitation check.  Then it will set the form property "valid" as true or false accordingly. 
+
+<input 
+	type="email" 
+	id="email" 
+	class="form-control"
+	ngModel
+	name="email"
+	required
+	email>
+
+Angular is adding classes to these inputs responsively. ng-valid, ng-touchged, ng-dirty etc.  You can see this on the Elements tab of dev toools. 
+
+
+## Built-in Validators & Using HTML5 Validation
+
+Which Validators do ship with Angular?
+
+Check out the Validators class: https://angular.io/api/forms/Validators - these are all built-in validators, though that are the methods which actually get executed (and which you later can add when using the reactive approach).
+
+For the template-driven approach, you need the directives. You can find out their names, by searching for "validator" in the official docs: https://angular.io/api?type=directive - everything marked with "D" is a directive and can be added to your template.
+
+Additionally, you might also want to enable HTML5 validation (by default, Angular disables it). You can do so by adding the ngNativeValidate to a control in your template.
+
+
+##Using the Form State:
+
+Easiest approach is to disable the submit button if the form contains invalid inputs. Property binding can check if that local reference to form is not invalid. 
+
+<button 
+	class="btn btn-primary" 
+	type="submit"
+	[disabled]="!f.valid">
+Submit</button>
+
+We can do some conditionaly formatting in CSS.  We have to be a bit careful with crafting our CSS logic so that sensible things happen when modifying our ng-tag classes.  For instance here, we only apply a red border to input class tags, that have both been touched and currently contain invalid inputs. 
+
+input.ng-invalid.ng-touched, {
+	border: 1px solid red
+}
+
+
+##Outputting Validation Error Messages
+
+Here we're accessing #email="ngModel" to use controls added by angular.  
+
+<input 
+	type="email" 
+	id="email" 
+	class="form-control"
+	ngModel
+	name="email"
+	required
+	email
+	#email="ngModel">
+
+<span class="help-block" *ngIf="!email.valid && email.touched"> Please entar a valid email.</span>
+
+Pleasant UX. 
+
+
+##Set Default Values with ngModel Property Binding
+
+For this we will change the way we add ngModel.  We're not using two-way binding. Just ordinary square brackets.
+[ngModel]="Default Value"  this would hard-code a string.  Or we could define a variable in the .ts file
+
+deafultQuestion = 'pet';
+
+//
+
+<select 
+	id="secret" 
+	class="form-control"
+	[ngModel] = "defaultQuestion"
+	name="secret">
+            <option value="pet">Your first Pet?</option>
+            <option value="teacher">Your first teacher?</option>
+
+And then that will select the <option value="pet"> option to set the default value. This can of course be overwritten. 
+
+
+##Using ngModel with Two-Way-Binding
+
+Maybe you want to instantly react to changes before the "submit" button is clicked. Initializing an answer variable, then returning to the HTML file. 
+
+answer = "";
+
+//
+
+<div class="form-group">
+	<textarea 
+		name ="questionAnswer"
+		rows="3"
+		[(ngModel)]="answer"></textArea
+</div>
+<p>Your Reply: {{answer}}</p>
+
+So the submit button will now take a snapshot of value that has been applied here. 
+
+
+##Grouping Form Controls
+
+On the value object when we submit a form, we want to group some things.  Helpful for very large forms. Also nice to validate the groups themself. 
+
+Adding another directive to the div for user-data. ngModelGroup, takes a string that is the group identifier. 
+
+        <div id="user-data" ngModelGroup="userData">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" class="form-control">
+          </div>
+          <button class="btn btn-default" type="button">Suggest an Username</button>
+          <div class="form-group">
+            <label for="email">Mail</label>
+            <input type="email" id="email" class="form-control">
+          </div>
+        </div>
+
+Now we've got an object for User Name and Email.  There's also an object for userData. We can again get access to the JS representation by adding a local reference #userData
+
+
+        <div id="user-data" ngModelGroup="userData" #userData="ngModelGroup">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" class="form-control">
+          </div>
+          <button class="btn btn-default" type="button">Suggest an Username</button>
+          <div class="form-group">
+            <label for="email">Mail</label>
+            <input type="email" id="email" class="form-control">
+          </div>
+        </div>
+	<p *ngIf=!userData.valid && userData.touched">User Data is invalid</p>
+
+This gives us access to the object representation so we can use the directives to determine validity and so such. 
+
+
+##Handling Radio Buttons
+
+In app.component.ts
+
+genders = ['male', 'female'];
+
+A genders array.  Now back in app component. This is using bootstrap to make nice radio buttons.  ngModel goes on the input, and then using property binding to output each item from that array. Or it could be hard coded. 
+app.component.html
+
+<div class="radio" *ngFor="let gender of genders">
+	<label>
+		<input
+			type="radio"
+			name="gender"
+			ngModel
+			[value]="gender">
+				{{ gender }}
+	</label>
+</div>
+
+"required" could be added as an attribute. Radio buttons are basically like any other input in ngModel. 
+
+
+##Setting and Patching Form Values
+
+  suggestUserName() {
+    const suggestedName = 'Superuser';
+	this.signupForm.setValue({
+		userData: {
+			username: suggestedName,
+			email: ''
+			},
+		secret: 'pet'
+		questionAnswer: '',
+		gender: 'male'
+	});
+}
+
+//
+
+          <button class="btn btn-default" type="button" (click)="suggestUserName()">Suggest an Username</button>
+
+So here we put in an object repressenting the whole form with setValue() and out suggestUserName() method on a click listener. However, this necessarily has to overwrite the entire form and that could be bad. So there's a better approach. 
+
+  suggestUserName() {
+    const suggestedName = 'Superuser';
+	this.signupForm.form.patchValue({
+		userData: {
+			username: suggestedName;
+		}
+	)}
+}
+
+This patchValue() method (available only on forms wrapped by ngForm) is good for only overwriting a specific field or fields without overwriting other information the user might have already inputted. 
+
+
+##Using Form Data
+
+Building a summary at the end of the form. 
+
+<hr>
+<div class="row">	
+	<div class="col-12">
+			<h3>Your Data:</h3>
+				<p>UserName:</p>
+				<p>Mail:</p>
+				<p>Secret Question:</p>
+				<p>Answer:</p>
+				<p>Gender:</p>
+	</div>
+</div>
+
+//
+
+...
+export class AppComponent {
+@ViewChild('f') signupForm:NgForm;
+	...
+	user = {
+		username: '',
+		email: '',
+		secretQuestion: '',
+		answer: '',
+		gender: ''
+		};
+	submitted = false;
+
+//Above is our user object.
+
+onSubmit() {
+	this.submitted = true;
+	this.user.username = this.signupForm.value.userData.username;
+	this.user.email = this.signupForm.value.userData.email;
+	this.user.secretQuestion = this.signupForm.value.secret;
+	this.user.answer = this.signupForm.value.questionAnswer;
+	this.user.gender = this.signupForm.value.gender;
+}
+
+And there is our method to grab values from the form and then we can display them via that object we created upon submission. So back in the HTML we'll use an *ngIf to determine if submitted=true, and likewise display the following block.
+
+<div class="row" *ngIf="submitted">	
+	<div class="col-12">
+			<h3>Your Data:</h3>
+				<p>UserName: {{ user.username }}</p>
+				<p>Mail: {{ user.email }}</p>
+				<p>Secret Question: {{ user.secretQuestion }}</p>
+				<p>Answer: {{ user.answer }}</p>
+				<p>Gender: {{ user.gender }}</p>
+	</div>
+</div>
+
+
+##Resetting Forms
+
+Let's say we extracted the data and want to reset it. Super simple. 
+
+onSubmit() {
+	this.submitted = true;
+	this.user.username = this.signupForm.value.userData.username;
+	this.user.email = this.signupForm.value.userData.email;
+	this.user.secretQuestion = this.signupForm.value.secret;
+	this.user.answer = this.signupForm.value.questionAnswer;
+	this.user.gender = this.signupForm.value.gender;
+
+	this.signupForm.reset();
+}
+
+Very easy. It behaves just like the page was reloaded again.  
