@@ -1,0 +1,427 @@
+##Introduction & Why Pipes are Useful
+
+Pipes: A feature built into Angular 2+ to transform output.
+
+Say you have a username in your template. It's a string. You might display it with string interpolation. But what if you wanted to display it in all capital letters?  You don't want to change it in the code, but you want the user to see all caps. 
+
+You could use a pipe to do this. 
+
+
+##Using Pipes. 
+
+Source:
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>{{ server.name }}</strong> | {{ server.instanceType }} | {{ server.started }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  servers = [
+    {
+      instanceType: 'medium',
+      name: 'Production Server',
+      status: 'stable',
+      started: new Date(15, 1, 2017)
+    },
+    {
+      instanceType: 'large',
+      name: 'User Database',
+      status: 'stable',
+      started: new Date(15, 1, 2017)
+    },
+    {
+      instanceType: 'small',
+      name: 'Development Server',
+      status: 'offline',
+      started: new Date(15, 1, 2017)
+    },
+    {
+      instanceType: 'small',
+      name: 'Testing Environment Server',
+      status: 'stable',
+      started: new Date(15, 1, 2017)
+    }
+  ];
+  getStatusClasses(server: {instanceType: string, name: string, status: string, started: Date}) {
+    return {
+      'list-group-item-success': server.status === 'stable',
+      'list-group-item-warning': server.status === 'offline',
+      'list-group-item-danger': server.status === 'critical'
+    };
+  }
+}
+
+
+
+####
+####
+####
+
+Let's change the output for the instance type.  The right place to use a pipe is in the HTML template. 
+{{ server.instanceType | uppercase}}
+This line of code here uses the pipe operator | and the built in pipe 'uppercase' to transform the output of that field to all uppercase as it renders to the user. 
+
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>
+		{{ server.name }}</strong> | 
+		{{ server.instanceType | uppercase}} | 
+		{{ server.started }}
+        </li>
+      </ul>
+
+The data in the ts class stays the same though.  We're going to transform the date. 
+{{ server.started | date}}
+This produces some unusual results though, so let's learn how to configure the Pipes. 
+
+
+##Parametrizing Pipes
+
+So you will add a colon to a pipe that can handle a parameter.
+
+{{ server.started | date }}
+
+The date pipe expects to receive a string, so here you set up the date. 
+
+{{ server.started | date: 'fullDate' }}
+
+That's nice.  You can add additional parameters with an additional colon (on pipes that take an additional parameter).
+
+
+##Where to Learn More About Pipes
+
+The offical documentation at
+
+angular.io/docs
+
+Then search pipes as a filter. 
+
+Looking at date, there are lots of different formats. It's also possible to formate it from scratch with a combination of symbols. 
+
+
+##Chaining Multiple Pipes
+
+Just add another pipe symbol and the pipe. However, know that the order *might* be important. Generally pipes are parsed from left to right.
+
+{{ server.started | date: 'fullDate' | uppercase }}
+
+So this makes the date display as fullDate, and then makes it uppercase. That's what we wanted. But watch this badness here:
+
+{{ server.started | uppercase |  date: 'fullDate' }}
+
+Inverting the order produces a CONSOLE ERROR because it tries to parse a date to uppercase, but expects a string.  FAIL. 
+
+
+##Creating a Custom Pipe
+
+Create a new file in the app folder.  It needs one special method transform(). And needs the PipeTransform import.  transform always needs to return. 
+
+shorten.pipe.ts
+
+import { Pipe, PipeTransform } from "@angular/core";
+
+@Pipe({
+	name: 'shorten'
+})
+export class ShortenPipe implements PipeTransform {
+	transform(value:any) {
+		return value.substr(0, 10);
+	}
+} 
+
+Here substr starts at index 0 and then returns only the first 10 characters. 
+
+We need to go to
+
+app.module.ts
+
+import { ShortenPipe } from './shorten.pipe';
+
+@NgModule({
+	declarations: [
+		AppComponent,
+		ShortenPipe
+	],
+	...
+})
+
+Okay cool. It's available now.  But how do we use it?  By calling it from the name property we set in the decorator statement here:
+@Pipe({
+	name: 'shorten'
+})
+
+Then, in the HTML
+
+{{ server.name | shorten }}
+
+Wow, cool, but we can make it prettier.
+if (value.length > 10){
+	return value.substr(0, 10 + '...')
+} 
+return value;
+}
+
+Eh, I dunno Max, I guess it's a little better.  
+
+
+##Parameterizing a Custom Pipe
+
+Okay, so let's add a parameter that lets the user specify the length of characters they want to clip. We do this by adding a 'limit' parameter in the transform method.
+
+import { Pipe, PipeTransform } from "@angular/core";
+
+@Pipe({
+	name: 'shorten'
+})
+export class ShortenPipe implements PipeTransform {
+	transform(value:any, limit:number) {
+		if (value.length > limit){
+	return value.substr(0, limit + '...')
+} 
+return value;
+}
+
+So now the user can implement it with 5 characters in length.  
+
+{{ server.name | shorten: 5 }} 
+
+You can of course add as many arguments in that transform statement as you would like.
+
+
+##Example: Creating a Filter Pipe
+
+An advanced usecase. We might encounter some limitations. This might look strange. Adding a text input to the template and two-way binding to ngModel.
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+	<input type="text" [(ngModel)]="filteredStatus">
+	<hr>
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>{{ server.name }}</strong> | {{ server.instanceType }} | {{ server.started }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+In the .ts file, we initialize the filteredStatus variable and set value to an empty string. 
+
+filteredStaus = '';
+
+We're going to build a pipe. In the CLI terminal type
+
+"ng gnereate pipe filter" OR "ng g p filter"
+
+Which creates a new pipe file with the imports and transform method already in place. 
+
+import { Pipe, PipeTransform } from "@angular/core";
+
+@Pipe({
+	name: 'filter'
+})
+export class FilterPipe implements PipeTransform {
+	transform(value:any, filterString:string, propName:string):any {
+		if (value.length === 0 || filterString === '') {
+			return value;
+		}
+		const resultArray = []
+		for (const item of value) {
+			if (item[propName] === filterString) {
+				resultArray.push(item);	
+		}
+	}
+			return resultArray;
+}
+}
+
+So... here we built a method that looks at the filterString selected and compares it to the propName and if those are equal, then it pushes the "item" from the array (denoted value) into the temporary array and then displays that as resultArray. CLI should add it to app module automatically, but maybe check.
+
+Now lets implement the pipe. 
+          *ngFor="let server of servers | filter:filteredStatus:'status'"
+That's right, we put the pipe on an *ngFor loop.  But we can do that. Since servers is already an array, the pipe we built works. 
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+	<input type="text" [(ngModel)]="filteredStatus">
+	<hr>
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers | filter:filteredStatus:'status'"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>{{ server.name }}</strong> | {{ server.instanceType }} | {{ server.started }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+So we can filter by the text input now. 
+
+
+##Pure and Impure Pipes (or: How to "fix" the Filter Pipe)
+
+There is one issue with our pipe. If we allow the user to add a new server...
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+	<input type="text" [(ngModel)]="filteredStatus">
+	<br>
+		<button class="btn" (click)="onAddServer()>Add Server</button>
+	<hr>
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers | filter:filteredStatus:'status'"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>{{ server.name }}</strong> | {{ server.instanceType }} | {{ server.started }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+.ts
+
+onAddServer() {
+	this.servers.push({
+		 instanceType: 'small',
+     		 name: 'New Server',
+      		 status: 'stable',
+      		 started: new Date(15, 1, 2017)
+});
+
+Yet if we implement this method while the data is filtered, it will not be added to the list of what we see.  However clearing the filter we see it has indeed been added.  This is not a bug. 
+
+Updating arrays or objects does not trigger the recalculation of the pipe by default. This can be overridden, but beware that this behavior can easily cause performance issues. It's resource intensive to recalculate a filter every time an array is updated. Override this by including pure: false
+
+
+import { Pipe, PipeTransform } from "@angular/core";
+
+@Pipe({
+	name: 'filter'
+	pure: false
+})
+export class FilterPipe implements PipeTransform {
+	transform(value:any, filterString:string, propName:string):any {
+		if (value.length === 0 || filterString === '') {
+			return value;
+		}
+		const resultArray = []
+		for (const item of value) {
+			if (item[propName] === filterString) {
+				resultArray.push(item);	
+		}
+	}
+			return resultArray;
+}
+}
+
+
+##Understanding the "async" Pipe
+
+Adding a new property appStatus to our .ts file. appStatus is a Promise built to simulate an API call, where the Promise resolves to a value of 'stable' after 2 seconds. 
+
+export class AppComponent {
+  appStatus = new Promise((resolve, reject) => {
+	setTimeout(() => {
+		resolve('stable');
+	}, 2000); 
+});
+  servers = [
+    {
+      instanceType: 'medium',
+      name: 'Production Server',
+      status: 'stable',
+      started: new Date(15, 1, 2017)
+    },
+....
+
+Back in HTML-land
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12 col-sm-10 col-md-8 col-sm-offset-1 col-md-offset-2">
+	<input type="text" [(ngModel)]="filteredStatus">
+	<br>
+		<button class="btn" (click)="onAddServer()>Add Server</button>
+	<hr>
+	<br><br>
+	<h2>App Status: {{ appStatus }}</h2>
+
+      <ul class="list-group">
+        <li
+          class="list-group-item"
+          *ngFor="let server of servers | filter:filteredStatus:'status'"
+          [ngClass]="getStatusClasses(server)">
+          <span
+            class="badge">
+            {{ server.status }}
+          </span>
+          <strong>{{ server.name }}</strong> | {{ server.instanceType }} | {{ server.started }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+Okay, so as written above the {{ appStatus }} output is rendered as 
+App Status: [object Object]
+
+Which might make sense initially, but even after 2s it remains that way, and that is because angular doesn't "watch" for the data changing.  However, we can insert a pipe to enable the transformation of that data. 
+
+{{ appStatus | async }}
+
+async recognizes the promise (or observable) and then it sees the resolved state and then prints the data.  Cool. 
+
+ 
