@@ -1,0 +1,742 @@
+##Module Introduction
+
+Many modern websites require authentication. We will learn how to do that. 
+
+
+##How Authentication Works
+
+Client - Server
+
+The user through the client sends authentication data to the server. The server has to perform this task because it would not be secure to do this within the browser. 
+
+In a traditional website, this would occur within a session. You would navigate to pages that would be stored on the server and so on. Angular is different though. The server will be a RESTful API (which is stateless), which means it can't render pages. In Angular the Client and the Server are decoupled from one another. They communicate via angular's HttpClient, but besides that there is no connection.   This means the session is not a solution. 
+
+The server will validate the user email and password and then send the client 
+
+A Token
+
+The token is a JSON web token, with lots of metadeta, a string that is encoded *not* encrypted. This is an important differentiation.  It means it can be unpacked and read by the client. The token is generated on the server with a certain algorithm or secret that only the server knows. So only the server can validate the token. 
+
+The idea is that the client stores the token, and then attaches it to any request that needs to be authenticated.  The server can then validate that token (which it created).  The server can then block access requested by fraudulent or incorrect tokens. The token is the piece of information the client has to interact with the server. 
+
+
+##Adding the Auth Page
+
+So, at this point the course project and the demonstration have converged, so my notes here will be more sparse as a lot of this code is already in the app.  
+
+Essentially we added an auth.component.ts and an auth.component.html.  Very basic HTML to get us a Sign Up or Login button and then UserName and Password fields. 
+
+Components were imported into app.module.ts like one would expect.  Additionally routes were added for:
+
+  { path: 'auth', component: AuthComponent}
+
+Within app-routing.module.ts  
+
+Finally we edited the HTML template for the header to include a link for our newly created link, and likewise load the component. 
+
+
+##Switching Between Auth Modes
+
+In auth.component.ts we simply made a property that stored a boolean 
+
+isLoginMode = true;
+
+Then a function to toggle it, then some cute HTML with string interpolation that used ternaries to change the button text in accordance with the value of the boolean. Cute. Easy. 
+
+
+##Handling Form Input
+
+Okay, so we used a template driven form to build a basic form that can only be submitted if it passes some validators and then gets the email and password as
+
+form:NgForm
+
+##Preparing the Backend
+
+In firebase, looking at the rules tab, we set:
+
+{
+  "rules": {
+    ".read": "auth != null",  // 2023-12-7
+    ".write": "auth != null",  // 2023-12-7
+  }
+}
+
+Then in the Authentication tab we are clicking to enable email/password validation. Now authentication via email and password is required. 
+
+##Preparing the Signup Request
+
+We're searching Firebase > Documentation > Reference > REST > Authentication and User Management > Sign Users Up w/ Email/Password
+
+We get this endpoint:
+https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=[API_KEY]
+
+This page shows the 
+
+Request Body Payload
+
+and
+
+Response Payload
+
+Now we build an 
+auth.service.ts
+
+Pretty standard, needs HttpClient, @Injectable, a signup method.  In that signup method, via the documentation, we make an this.http.post('URL..?key=[API_KEY]')
+
+Now of course we replace [API_KEY] with the actual API key which we find on our firebase, with 
+Project Overview Tab > Gear Icon > Project Settings
+
+And then replace the [API_KEY] with that.
+
+Now we build our signup() method which creates an observable, and sends the data in the format that the API wants it.  Additionally we build an interface within the service file reprenting how we expect the response to look in accordance with the documentation. 
+import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
+
+interface AuthResponseData {
+  kind:string,
+  idToken:string,
+  email:string,
+  refreshToken:string,
+  expiresIn:string,
+  localId:string
+}
+
+@Injectable({providedIn: 'root'})
+export class AuthService {
+
+  nahFam:string = 'LOL' 
+  
+  constructor(private http:HttpClient){}
+
+  signup(email:string, password:string){
+    return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    );
+  }
+}
+
+Notice the body is defined in accordance with the documentation. Then we actually build an interface to represent the data that we expect to get back in accordance with the documentation, also within our auth.service.ts
+
+
+##Sending a SignUp Request
+
+So this is fairly straightforward, but looks complicated. This basically gets the values from the form, performs an additional (albeit not super secure) validation check, then makes sure the user is in signup mode, which is to say "else of isLoginMode=true" and then subscribes to the observable called by the authService.signup() method. 
+
+import { Component } from "@angular/core";
+import { NgForm } from "@angular/forms";
+import { AuthService } from "./auth.service";
+
+@Component({
+  selector: 'app-auth',
+  templateUrl: './auth.component.html'
+})
+export class AuthComponent {
+  isLoginMode = true;
+
+  constructor(private authService:AuthService){}
+
+  onSwitchMode(){
+    this.isLoginMode = !this.isLoginMode;
+  }
+
+  onSubmit(form: NgForm) {
+    if (!form.valid) {
+      return;
+    }
+    const email = form.value.email;
+    const password = form.value.password;
+
+    if (this.isLoginMode) {
+
+    } else {
+    this.authService.signup(email, password).subscribe({
+      next: (resData) => {
+        console.log(resData);
+      },
+      error: (error) => {
+        console.log(error);
+      }
+    })
+    };
+    form.reset();
+  }
+}
+
+And it even works. 
+
+##Adding a Loading Spinner & Error Handling Logic
+
+Okay, we had some fun and added a cool CSS spinner, by actually making it a component with a loading-spinner.component.ts file, and a loading-spinner.component.css file. We actually skipped making a HTML file for the component with this cute little line that just builds the template in the @Component configuration object: 
+
+import { Component } from "@angular/core";
+
+@Component({
+  selector: 'app-loading-spinner',
+  template: '<div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>',
+  styleUrls: ['./loading-spinner.component.css']
+
+})
+export class LoadingSpinnerComponent {
+
+}
+
+Cool. Then we simply added an isLoading property to the auth.component.ts file and toggle its state in accordance with what makes sense. Using *ngIf="isLoading" statements, we can determine if the loader or the login screen appears. 
+
+    <div *ngIf="isLoading">
+      <app-loading-spinner></app-loading-spinner>
+    </div>
+    <form #authForm="ngForm" (ngSubmit)="onSubmit(authForm)" *ngIf="!isLoading">
+
+Then we also make a property error=null; that we set to an error status if the HttpResponse sends back an error. 
+
+
+##Improving Error Handling
+
+Okay, so we outsourced the error handling logic to 
+auth.service.ts
+As part of a horrible observable chain sponsored by rxjs operators, and their relentless pursuit of deprecating their own syntax. 
+
+  signup(email:string, password:string){
+    return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    )
+    .pipe(
+      catchError(errorRes => {
+      let errorMessage = 'An Unknown Error Occurred!';
+      if (!errorRes.error || !errorRes.error.error) {
+        return throwError(() => new Error(errorMessage))
+      }
+      switch (errorRes.error.error.message) {
+        case 'EMAIL_EXISTS': errorMessage = 'This email already exists';
+      }
+      return throwError(() => new Error(errorMessage))
+    })
+    );
+  }
+
+Essentially that code uses something called a switch statement to compare the value of errorRes.error.error to the known documented values from the API. If it matches one, it prints a nice little error message. If it does not, (or it simply does not exist) it prints the ambiguous error message. 
+
+
+##Sending Login Requests
+
+This is actually kinf of an elegant means by which to contain signup and login to one onSubmit auth function. So first, in the auth.service.com:
+
+  login(email:string, password:string) {
+     return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    })
+  }
+
+This is very similar to the signup() method, but with a different URL, and the interface gets back one additional field, which we can actually add as an optional property with a questionmark. We're also exporting this interface, because we will be using it elsewhere. 
+
+export interface AuthResponseData {
+  kind:string;
+  idToken:string;
+  email:string;
+  refreshToken:string;
+  expiresIn:string;
+  localId:string;
+  registered?:boolean;
+}
+
+The where else we will be using it is here in the auth.component.ts file:
+
+  onSubmit(form: NgForm) {
+    if (!form.valid) {
+      return;
+    }
+    const email = form.value.email;
+    const password = form.value.password;
+
+    let authObs:Observable<AuthResponseData>
+
+    this.isLoading = true;
+    if (this.isLoginMode) {
+      authObs = this.authService.login(email, password);
+    } else {
+      authObs = this.authService.signup(email, password);
+    };
+
+    authObs.subscribe({
+      next: (resData) => {
+        console.log(resData);
+        this.isLoading = false;
+      },
+      error: (errorMessage) => {
+        console.log(errorMessage);
+        this.error = errorMessage;
+        this.isLoading = false;
+      }
+    });
+
+    form.reset();
+  }
+
+Notice that we declared a variable to hold the Observable returned in aither case of login or signup.  Then we actually just subscribe to that Observable at the end of the function which contains our handling logic. Neato. 
+
+
+##Login Error Handling
+
+So we outsourced error handling to a private method aithin auth.service.ts called handleError().  We can then just put a catchError operator in pipe(), then pass in the function [but do not call it].  This way we can handle errors for both signup and login as follows:
+
+  signup(email:string, password:string){
+    return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    ).pipe(catchError(this.handleError));
+  }
+
+  login(email:string, password:string) {
+     return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    ).pipe(catchError(this.handleError));
+  }
+
+  private handleError(errorRes:HttpErrorResponse) {
+      let errorMessage = 'An Unknown Error Occurred!';
+      if (!errorRes.error || !errorRes.error.error) {
+        return throwError(() => new Error(errorMessage))
+      }
+      switch (errorRes.error.error.message) {
+        case 'EMAIL_EXISTS': errorMessage = 'This email already exists';
+          break;
+        case 'EMAIL_NOT_FOUND': errorMessage = "This user doesn't exist.";
+          break;
+        case 'INVALID_LOGIN_CREDENTIALS': errorMessage = "LOGIN FAIL. It's your fault.";
+          break;
+        case 'USER_DISABLED': errorMessage = 'User is BANNED. Big FAIL.';
+          break;
+      }
+      return throwError(() => new Error(errorMessage))
+  }
+
+
+##Creating and Storing the User Data
+
+Building a
+user.model.ts
+
+export class User {
+  constructor(
+    public email:string, 
+    public id:string, 
+    private _token:string, 
+    private _tokenExpirationDate:Date
+    ){}
+
+    get token(){
+      if(!this._tokenExpirationDate || new Date() > this._tokenExpirationDate) {
+        return null;
+      }
+      return this._token;
+    }
+}
+
+Here, get is a special kind of function that can be called like a property, which is to say 
+user.token
+
+Would cause that getter to run.  
+
+And then we wrote a bunch of code in the auth.service.ts Essentially we made a Subject<User> that allows us to emit/next a user upon login or signup. We accomplist that by making a handleAuthentication() method, that gets passed the resData from the http request within the pipe(tap()) method.  Then that gives use what we need to generate the new User defined in the model via its constructor.  
+
+user = new Subject<User>();
+...
+
+ signup(email:string, password:string){
+    return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    ).pipe(catchError(this.handleError), tap(resData => {
+      this.handleAuthentication(
+        resData.email,
+        resData.localId,
+        resData.idToken,
+        +resData.expiresIn
+        );
+    }));
+  }
+
+  login(email:string, password:string) {
+     return this.http.post<AuthResponseData>(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${this.nahFam}`,
+    {
+      email: email,
+      password: password,
+      returnSecureToken: true
+    }
+    ).pipe(catchError(this.handleError), tap(resData => {
+      this.handleAuthentication(
+        resData.email,
+        resData.localId,
+        resData.idToken,
+        +resData.expiresIn
+        );
+    }));
+  }
+
+  private handleAuthentication(email:string, userId:string, token:string, expiresIn:number){
+      const expirationDate = new Date(
+        new Date().getTime() + expiresIn * 1000)
+      const user = new User(
+        email,
+        userId,
+        token,
+        expirationDate
+        );
+        this.user.next(user);
+  }
+
+}
+
+
+##Reflecting the Auth Stae in the UI
+
+Oh man, we actually used the dumb header thing I accidentally figured out earlier. We use it to store an authentication state. 
+
+export class HeaderComponent implements OnInit, OnDestroy {
+
+  isAuthenticated = false;
+  private userSub:Subscription;
+  private dataStorageSub:Subscription;
+
+  constructor(
+    private dataStorageService:DataStorageService,
+    private authService:AuthService){}
+
+    ngOnInit(): void {
+        this.authService.user.subscribe(user => {
+          this.isAuthenticated = !!user;  // bang bang equivalent to !user ? false : true;
+        }
+
+        );
+    }
+
+Essentially ngOnInit checks if there is a true-ish user object in the auth.service.ts, which is essentially what we're calling logged in. We use the bang bang operator to accomplish what a perhaps more comprehensible ternary would, but that's reflected in my comment. Then we toggle the visibility of our various header elements by using *ngIf="isAuthenticate" in various sensible configurations. Straightforward enough. 
+
+##Adding the Token to Outgoing Requests
+
+So we want to append the valid idToken to our outgoing requests, and we'll probably do that via the data-stroage.service.ts  Confidently we inject the { AuthService } into that file. Now we go to the auth.service.ts Apparently we don't want to bother subscribing to the entire user object since we are only looking for the idToken value, so we're going to modify the existing user = new Subject to be a BehaviorSubject, as this will store the value of User that it emitted. Because of this, it needs to be initialized as null, but otherwise, we do not need to change anything about it or the methods that touch user. The adjustement looks like this in
+auth.service.ts  
+
+  user = new BehaviorSubject<User>(null);
+
+Back in 
+data-storage.service.ts
+
+Oh God. Umm... we're now using the take operator, another lovely operator from rxjs that goes in our pipe() operator.  take subscribes and unsubscribes immediately after taking the value emited by an observable the number of times you pass in as an argument (i think?). 
+
+"pretty easy to understand in the end"
+
+Dangit Max. 
+
+NO IT'S NOT. 
+Now we add in pipe() as a second argument exhaustMap() do the rxjs wonders never cease?  exhaustMap waits for the first observable to complete, then it gives us that user (the data from the previous observable) takes a function and then it will return a new observable, which replaces the previous observable with a new observable in this chain of asynchronous madness. So now we have the inner observable from inside our exhaustMap function. 
+
+Simple? Apparently? I'm not so sure...  
+
+But we're not done.  We actually remove our existing .pipe container, and place its methods into the new pipe() container. Now we have like four fricken rxjs things in our pipe() chain. The key takeaway is that exhaustMap performs kind of a switcheroo letting us take the user and then replace it with a new observable. This shouldn't *fingers crossed* affect the functionality of the rest of our methods but it does let us...
+
+...finally be ready to add the token. 
+
+Which we could do manually in the URL (via firebase documentation) Or..... we could pass in an object as a second argument in the .get() request, and set params. Ultimately the whole method looks like this:
+
+  fetchRecipes(): Observable<Recipe[]> {
+  return this.authService.user.pipe(
+    take(1),
+    exhaustMap((user) => {
+      return this.http
+      .get<Recipe[]>(
+        'https://ng-course-recipe-book-#####-default-rtdb.firebaseio.com/recipes.json',
+        {
+          params: new HttpParams().set('auth', user.token)
+        }
+    );
+    }),
+    map((recipes) => {
+    return recipes.map((recipe) => {
+      return { ...recipe, ingredients: recipe.ingredients ? recipe.ingredients : [] };
+    });
+    }),
+    tap(recipes => {
+      this.recipesService.setRecipes(recipes)
+    })
+  );
+}
+
+ I have never been so surprised that something worked on the first try. 
+
+
+##Attaching the token with an Interceptor
+
+So we're going to build an Interceptor to append the token on the storeRecipes() method because why not?  If the previous technique for appending tokens didn't break... why quit while you're ahead?
+
+So building a
+auth-interceptor.service.ts
+
+At some point...
+
+We're going to have to add it to 
+app.module.ts  
+
+@NgModule({
+...
+providers:   providers: [ShoppingListService, RecipeService, {provide: HTTP_INTERCEPTORS, useClass: AuthInterceptorService, multi: true}],
+...
+)}
+
+Remember that's the weird configuration object for an HTTP_INTERCEPTORS that we have to pass in. 
+
+Back to building:
+auth-interceptor.service.ts
+
+import { Injectable } from "@angular/core";
+import { HttpInterceptor, HttpRequest, HttpHandler, HttpParams } from "@angular/common/http";
+import { AuthService } from "./auth.service";
+import { take, exhaustMap } from "rxjs";
+
+@Injectable()
+export class AuthInterceptorService implements HttpInterceptor {
+
+  constructor(private authService:AuthService){}
+
+  intercept(req: HttpRequest<any>, next: HttpHandler) {
+  return this.authService.user.pipe(
+    take(1),
+    exhaustMap((user) => {
+      if (!user) {
+        return next.handle(req);
+      }
+      const modifiedReq = req.clone({params: new HttpParams().set('auth', user.token)})
+      return next.handle(modifiedReq);
+    }))
+  }
+}
+
+
+Positively horrible. We just used our take and exhaustMap again to modify ALL outgoing requests and we exhaustMap'D our req (see in the intercept method where we get it as an argument) then we clone it in exhaustMap with the appended params  const modifiedReq = req.clone({params: new HttpParams().set('auth', user.token)}) and then return it. 
+
+There is a bug fix arount the conditional if(!user) check that prevents this from appending our signup or login requests as in those cases user will read false-y
+
+Of course we have to edit the nice fetchRecipes method we built in the data-storage.service.ts because we don't want to append that request twice. That now looks like this:
+
+  fetchRecipes(): Observable<Recipe[]> {
+  return this.http
+  .get<Recipe[]>(
+    'https://ng-course-recipe-book-#####-default-rtdb.firebaseio.com/recipes.json'
+    ).pipe(
+    map((recipes) => {
+    return recipes.map((recipe) => {
+      return { ...recipe, ingredients: recipe.ingredients ? recipe.ingredients : [] };
+    });
+    }),
+    tap(recipes => {
+      this.recipesService.setRecipes(recipes)
+    })
+    );
+}
+
+
+##Adding Logout
+
+auth.service.ts
+
+  logout() {
+    this.user.next(null);
+  }
+
+So beautifully simple. We just broadcast null from our user:BehaviorSubject<User>()
+
+Wow. 
+
+Okay then build a method in the header.component.ts and attach it to the HTML. And actually for kicks and giggles, let's use routing in the service to navigate back to /auth, so updated to look like so:
+
+  logout() {
+    this.user.next(null);
+    this.router.navigate(['./auth'])
+  }
+
+Actually easy. And it all works so far. Amazing. 
+
+
+##Adding Auto Login
+
+Currently when we close the app there is no persistent data within the app. If we want to store the login token, we need to put it in a persistent storage.  This means using either cookies or Local Storage. We will be using Local Storage. 
+
+Working in 
+auth.service.ts
+
+ 	localStorage.setItem('key, 'value');
+
+Within the handleAuthentication method, we can use the above built-in method to set a localStorage item as a key:value pair. For our app, that looks like this:
+
+        localStorage.setItem('userData', JSON.stringify(user));
+
+We have to stringify() our user which converts the JSON object it represents into a storable text value. 
+
+Now that it's stored, we can retrieve it when the application starts. We'll add autoLogin() to our 
+auth.service.ts
+
+  autoLogin(){
+    const userData: {
+      email:string;
+      id:string;
+      _token:string;
+      _tokenExpirationDate:string;
+    } = JSON.parse(localStorage.getItem('userData'));
+    if (!userData) {
+      return;
+    }
+
+    const loadedUser = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
+
+    if(loadedUser.token) {
+      this.user.next(loadedUser);
+    }
+  }
+
+This method simply retrieves (specifically JSON.parse(localStorage.getItem('userData')) ) the userData key value from local storage, parses it into an object literal, for which we have the properties waiting for it already.  It checks that the object exists. Then if it does, it creates a loadedUser of type User with the constructor and the data from our unpacked object.  We set types correctly, of most significance with converting the string to a Date object.  Then if loadedUser *has* a token property, it emits/nexts the loadedUser are the user (which if we recall is a BehaviorSubject we defined earlier:
+
+  user = new BehaviorSubject<User>(null);
+
+
+##Adding Auto-Logout
+
+Now we need to automatically log the user out when the token expires. Currently nothing changes in our application when that happens. 
+
+But let's start by actually clearing Local Storage when the user logs out. 
+
+  logout() {
+    this.user.next(null);
+    this.router.navigate(['./auth']);
+    localStorage.removeItem('userData');
+  }
+
+We could also use localStorage.clear() to wipe everything, but the above method with .removeItem() is more prescise because it only targets that userData.  (Less technical debt). 
+
+At the top of the file, we need a new place to store a timer, a property we will define as a type:any
+
+  private tokenExpirationTimer:any;
+
+Now the methods look like so:
+
+  logout() {
+    this.user.next(null);
+    this.router.navigate(['./auth']);
+    localStorage.removeItem('userData');
+    if (this.tokenExpirationTimer) {
+      clearTimeout(this.tokenExpirationTimer);
+    }
+    this.tokenExpirationTimer = null;
+  }
+
+  autoLogout(expirationDuration:number) {
+    this.tokenExpirationTimer = setTimeout(() => {
+      this.logout();
+    }, expirationDuration);
+  }
+
+We essentially use a timeout with the amount of time from the expiration token passed into it as millisecond.  Then once the timer expires, we call this.logout.  We also have to make sure that when the user logs out manually, that it clears this time property as well. So we do that.  Now we have to append the file to make sure we are starting the autoLogout timer any time that the user BehaviorSubject emits a new value. 
+
+  private handleAuthentication(email:string, userId:string, token:string, expiresIn:number){
+      const expirationDate = new Date(
+        new Date().getTime() + expiresIn * 1000)
+      const user = new User(
+        email,
+        userId,
+        token,
+        expirationDate
+        );
+        this.user.next(user);
+        this.autoLogout(expiresIn * 1000);					// <- See Here
+        localStorage.setItem('userData', JSON.stringify(user));
+  }
+
+That one is self explanitor enough. On autoLogin() we actually have to perform some date math to figure out how many milliseconds are left on the login timer by subtracting the current time, from the _tokenExpirationDate time. 
+
+  autoLogin(){
+    const userData: {
+      email:string;
+      id:string;
+      _token:string;
+      _tokenExpirationDate:string;
+    } = JSON.parse(localStorage.getItem('userData'));
+    if (!userData) {
+      return;
+    }
+
+    const loadedUser = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
+
+    if(loadedUser.token) {
+      this.user.next(loadedUser);
+      const expirationDuration =
+      new Date(userData._tokenExpirationDate).getTime() -
+      new Date().getTime();
+      this.autoLogout(expirationDuration);
+    }
+  }
+
+It is worth noting that when a negative number is passed into setTimeout() as would be the case if the token were to have expired, by convention setTimeout treats that negative number as 0 causing the logout() function to be called by autoLogout(). 
+
+
+##Adding an Auth Guard
+
+Now we're going to add some Auth Guards to protect our routes from simply direct navigation by the URL.
+
+Max's method with CanActivate is deprecated in favor of CanActivateFn.  This forces us to update our syntax.  This works... 
+
+import { CanActivateFn, CanActivateChildFn } from "@angular/router";
+import { ActivatedRouteSnapshot, RouterStateSnapshot, Router } from "@angular/router";
+import { inject, Injectable } from "@angular/core";
+import { AuthService } from "./auth.service";
+import { map, take } from "rxjs";
+
+export const AuthGuard: CanActivateFn = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  return authService.user.pipe(
+    take(1),
+      map(user => {
+        const isAuth = !!user;
+        if (isAuth) {
+          return true;
+        }
+        return router.createUrlTree(['/auth']);
+      }))
+};
+
+export const canActivateChild: CanActivateChildFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => AuthGuard(route, state);
+
+
+But honestle I'm kind of afraid to touch it because it's C&P&E'D stack overflow and I don't understand how it works or why it's different (or why anyone has such an axe to grind with class based programming, or why functional methods are so trendy). Maybe I should go to some office hours. 
+
+
+##Wrap Up
+
+Oi, well, we did it. Feeling really behind, but this is here.  Sanitized any references to keys or databases from the notes as well. 
+
+
+
