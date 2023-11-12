@@ -1,0 +1,7 @@
+##Module Introduction
+
+Oh no! We're nearing the end of the course! I'm going to miss Max so much!
+
+Oh, but the video. We're going to look at performance optimizations and prepare it for deployment. 
+
+##What are Modules?

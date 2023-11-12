@@ -1,0 +1,190 @@
+##Module Introduction
+
+Dynamic Components that you only show at runtime.  It's not a specific term or feature, but it's components that we load on demand via our code. 
+
+##Adding an Alert Modal Component
+
+Let's try an alert box for the error message around incorrect login credentials.  
+
+So basically we build an AlertComponent in it's own directory, and it looks like this:
+
+<div class="backdrop"></div>
+<div class="alert-box">
+  <p>{{ message }}</p>
+  <div class="alert-box-actions">
+    <button class="btn btn-primary">
+      Close
+    </button>
+  </div>
+</div>
+
+import { Component } from "@angular/core";
+import { Input } from "@angular/core";
+
+@Component({
+  selector: 'app-alert',
+  templateUrl: './alert.component.html'
+})
+export class AlertComponent {
+  @Input() message:string;
+}
+
+
+Then in the auth.component.html we use this cute little line to conditionally display the AlertComponent, with the "error" from auth.component.ts passed though to the alert.component.html via property binding and then string interpolation.  It's a cool trick:
+
+    <app-alert [message]="error" *ngIf="error"></app-alert>
+
+Okay, that's cool, but we can't close it. So let's look at what that looks like.
+
+
+##Understanding Different Approaches
+
+So this means we want to control programatically when a thing is displayed. Currently we're doing that with *ngIf
+
+That's a great approach... but there's more complicated ways to do this. Naturally we're going to do one now. 
+
+  "Dynamic Component Loader"
+
+Creating a component in DOM. Then manually loaded in the app. 
+
+This is more complicated because we have to manage it's creation, destruction , and logic. 
+
+##Using ngIf
+
+Pretty cool, we didn't have to create it, and we'll finish it out here. 
+
+export class AlertComponent {
+  @Input() message:string;
+  @Output() close = new EventEmitter<void>()
+
+  onClose() {
+    this.close.emit()
+  }
+}
+
+We're emitting an output upon calling (click)="onClose()" from our button. Easy enough. Now we've got to listen for that emitted event in the auth.component.html where we append the app-alert tag as follows:
+
+    <app-alert [message]="error" *ngIf="error" (close)="onHandleError()"></app-alert>
+
+In the auth.component.ts file, we build:
+
+  onHandleError() {
+    this.error = null;
+  }
+
+Now check this out. Resetting the error property to null in the auth.component.ts is actually the trigger for making alert.component.ts disappear because no longer does the *ngIf="error" pass. Pretty slick. 
+
+You should probably do it this way. We're gonna do something awful, I can feel it...
+
+
+##Preparing Programmatic Creation
+
+Commenting out our nice solution from the template.  
+
+In the auth.component.ts we build a showErrorAlert(message:string).  We call it in our onSubmit() method, whenver we get an error, and pass it into the function. That code looks like: 
+
+onSubmit()
+...
+      error: (errorMessage) => {
+        console.log(errorMessage);
+        this.showErrorAlert(errorMessage);
+        this.isLoading = false;
+      }
+
+You might think that you could simply import the AlertComponent and then use showErrorAlert() to create an instance of that object.  That actually passes vsCode and TypeScript checks, but it fails because that's not what Angular is doing when it creates a component. The truth is much more complex. 
+
+Angular gives us a tool. ComponentFactory. We will need to import the ComponentFactoryResolver. Except this tool is deprecated. So it's unclear what will be valid from this video. I *think* this is the modern way to do this....
+auth.component.ts 
+
+  private showErrorAlert(message:string) {
+    const alertComp = this.viewContainerRef.createComponent(AlertComponent);
+  }
+
+Then we make a directive that basically stands in place to get our component so that angular can buiild it correctly....
+placeholder.directive.ts
+
+import { Directive, ViewContainerRef } from '@angular/core';
+
+@Directive({
+  selector: '[appPlaceholder]'
+})
+export class PlaceholderDirective {
+  constructor(public viewContainerRef:ViewContainerRef){}
+}
+
+##Creating a Component Programmatically
+
+In 
+auth.component.html 
+
+<ng-template appPlaceholder></ng-template>
+
+We're using this to like... mark the place we want to create a component.  Then in 
+auth.component.ts 
+
+export class AuthComponent {
+  isLoginMode = true;
+  isLoading = false;
+  error:string = null;
+  @ViewChild(PlaceholderDirective, {static: false}) alertHost:PlaceholderDirective;
+
+We're using @ViewChild to get the first instance of the PlaceholderDirective and storing it in a propert called alertHost.
+
+Now we can expand our showErrorAlert() method as follows:
+
+  private showErrorAlert(message:string) {
+    const hostViewContainerRef = this.alertHost.viewContainerRef;
+    hostViewContainerRef.clear();
+    hostViewContainerRef.createComponent(AlertComponent);
+  }
+
+Wow, and that actually renders, unlike Max's first attempt. Wow, I managed to interpret the deprecation notes correctly. 
+
+Except it's not hooked up right, so let's see if we can do that. 
+
+
+##Understanding entryComponents
+
+Angular 9+ doesn't throw Max's error. He acknowledges this. So maybe we can ignore this... 
+
+Angular looks at app.module.ts and app.routing.ts for the components that it should expect. 
+
+Angular 9+ we don't need to add this entryComponents thing. 
+
+
+##Data Binding and Event Binding
+
+So currently our custom component isn't working because we don't have the @Input @Output data when we create it. So we will store the reference to the instance of the component that we created in a variable and then set those properties in the showErrorAlert() method. 
+
+Listening to Max say "Now that's great" at 75% speed he sounds hilariously slurring drunk. 
+
+Anyway, here's the working function:
+
+  private showErrorAlert(message:string) {
+    const hostViewContainerRef = this.alertHost.viewContainerRef;
+    hostViewContainerRef.clear();
+    const componentRef = hostViewContainerRef.createComponent(AlertComponent);
+
+    componentRef.instance.message = message;
+    this.closeSub = componentRef.instance.close.subscribe(() => {
+      this.closeSub.unsubscribe();
+      hostViewContainerRef.clear();
+    });
+  }
+
+So we're setting those properties with componentRef.instance, and then with the close property, we're actually subscribing to the EventEmitter.  This is maybe the only situational context where we would subscribing to an EventEmitter is best practice. Whenever the EventEmitter is fired (someone clicks close) then we unsubscribe and clear the template. Wow. 
+
+We should also add this to make sure that we don't wind up with a stray closeSub running
+
+  ngOnDestroy(): void {
+      if (this.closeSub) {
+        this.closeSub.unsubscribe();
+      }
+  }
+
+##Wrap Up
+
+Wow, that actually wasn't so bad, and I feel good about navigating the deprecations on this one. 
+
+But seriously, like Max advises, let's just use *ngIf when we can. 
+  
