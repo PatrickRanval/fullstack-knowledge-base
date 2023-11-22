@@ -5,3 +5,568 @@ Oh no! We're nearing the end of the course! I'm going to miss Max so much!
 Oh, but the video. We're going to look at performance optimizations and prepare it for deployment. 
 
 ##What are Modules?
+
+What are modules in Angular?
+
+Ways of bundling angular building blocks together. Components, Directives, Services, Pipes. 
+
+You have to group these into modules so Angular is aware of these features.  Angular does not automatically scan the file and find these. 
+
+Every Angular app has at least one module: app.module.ts
+
+However that may be split into multiple parts.  
+
+Angular itself provides some modules grouped together, for instance the FormsModule.
+
+You can't use a feature or building block without including it to a module. 
+
+
+##Analyzing the AppModule
+
+Things with the @NgModule decorator. Currently app.module.ts and app-routing.module.ts
+
+declrations are components, directives, and custom pipes. 
+
+imports lets you bring modules into your module. 
+
+Looking at the actual files for FormsModule or any of the Angular prebuilt modules would follow a similar anatomy. 
+
+providers is for services, takes an array, available application wide.
+
+bootstrap defines which component is available on index.html, generally should be 1 root component. In our case [AppComponent]
+
+*Every module works on its own. They don't communicate with each other in Angular.*
+
+If RecipesComponent is declared in app.module.ts then it cannot be used elsewhere.
+
+When we import a module it imports everything that is in the export array for that module.
+
+Splitting components into modules can ultilmately lead to enhanced performance. 
+
+ 
+
+##Getting Stated with Feature Modules
+
+Feature Modules
+
+This can help with organization an refactoring easier. 
+
+Let's apply this notion of Feature Modules into our course project:
+
+Recipes
+
+ShoppingList
+
+Auth
+
+So creating a recipes.module.ts
+
+exporting a class, adding the @NgModule decorator, then passing in the configuration obeject where we will declare all Recipe related components. We also have to remove those from app.module.ts
+
+We have to fix all the imports as well and sense the file tree is now different, we can't use Ctrl+X.  We can however use the little lightbulb icon on VSCode to "Add All Missing Imports" and that's really handy. 
+
+Now this is silly, but we add the export array to @NgModule decorator and export all of those. Then we go back to app.module.ts and we add "RecipesModule" to the @NgModule import array of that file.  So we should have access to all those components we just deleted now. 
+
+But now we get this error:
+Can't bind to 'formGroup' since it isn't a known property of 'form'.
+
+That's because those Recipes components are using things from angular that aren't currently being imported. 
+
+Everything in a module works stand alone. 
+
+How can we fix that?
+
+##Splitting Modules Correctly
+
+Now Services are available application wide, but things like FormsModule are not magically available application-wide. They have to be imported to a given module.  We can add those imports to our recipes.module.ts  
+
+BrowserModule is a special case to be used once and only once in app.module.ts.  Everywhere else, to gain its functionality of ngFor and ngIf and so on, import "CommonModule"
+
+Now that we added the imports for the needed Modules, it works again. Here's the completed file:
+
+ import { NgModule } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { ReactiveFormsModule } from "@angular/forms";
+import { RouterModule } from "@angular/router";
+
+import { RecipeDetailComponent } from "./recipe-detail/recipe-detail.component";
+import { RecipeEditComponent } from "./recipe-edit/recipe-edit.component";
+import { RecipeItemComponent } from "./recipe-list/recipe-item/recipe-item.component";
+import { RecipeListComponent } from "./recipe-list/recipe-list.component";
+import { RecipeStartComponent } from "./recipe-start/recipe-start.component";
+import { RecipesComponent } from "./recipes.component";
+
+
+@NgModule({
+  declarations: [
+    RecipesComponent,
+    RecipeListComponent,
+    RecipeDetailComponent,
+    RecipeItemComponent,
+    RecipeStartComponent,
+    RecipeEditComponent,
+  ],
+  imports: [
+    RouterModule,
+    CommonModule,
+    ReactiveFormsModule
+  ],
+  exports: [
+    RecipesComponent,
+    RecipeListComponent,
+    RecipeDetailComponent,
+    RecipeItemComponent,
+    RecipeStartComponent,
+    RecipeEditComponent,
+  ]
+})
+export class RecipesModule {
+
+}
+
+
+##Adding Routes to Feature Modules
+
+We can move recipes related route configuration away from app.module.ts and into recipes.module.ts
+
+Adding 
+recipes-routing.module.ts
+
+While we could at the routing within the recipes.module.ts for the sake of scalability and cleanliness, we go ahead and build a routing file to hold all the recipes related routing. It looks like this:
+
+import { NgModule } from "@angular/core";
+import { AuthGuard } from "../auth/auth.guard";
+import { RecipeDetailComponent } from "./recipe-detail/recipe-detail.component";
+import { RecipeEditComponent } from "./recipe-edit/recipe-edit.component";
+import { RecipeStartComponent } from "./recipe-start/recipe-start.component";
+import { recipeResolver } from "./recipes-resolver.service";
+import { RecipesComponent } from "./recipes.component";
+import { RouterModule } from "@angular/router";
+
+const routes = [
+  {
+    path: 'recipes',
+    component: RecipesComponent,
+    canActivate: [AuthGuard],
+    children:[
+    { path: '', component: RecipeStartComponent},
+    { path: 'new', component: RecipeEditComponent},
+    { path: ':id', component: RecipeDetailComponent, resolve: [recipeResolver]},
+    { path: ':id/edit', component: RecipeEditComponent, resolve: [recipeResolver]},
+  ]
+}]
+
+@NgModule({
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
+})
+export class RecipesRoutingModule {}
+
+Important to note is that here we use forChild() instead of forRoot() like we do in app-routing.module.ts  That's because these routes are all /recipes
+
+Also to use this routing within the recipes.module.ts we have to place it in the imports array as 
+
+  imports: [	
+    ...,
+    RecipesRoutingModule
+  ],  
+
+Even though we exported RouterModule. This is a bit confusing to me personally.
+
+
+##Component Declarations
+
+You have to add any components you load via routing to the declarations within that module's routing. However this also means you can remove the exports because the module is now self contained and app-routing.module.ts no longer needs access to those components since recipes-routing.module.ts is now handling that. Our final final recipes.module.ts looks like this:
+
+import { NgModule } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { ReactiveFormsModule } from "@angular/forms";
+import { RouterModule } from "@angular/router";
+
+import { RecipeDetailComponent } from "./recipe-detail/recipe-detail.component";
+import { RecipeEditComponent } from "./recipe-edit/recipe-edit.component";
+import { RecipeItemComponent } from "./recipe-list/recipe-item/recipe-item.component";
+import { RecipeListComponent } from "./recipe-list/recipe-list.component";
+import { RecipeStartComponent } from "./recipe-start/recipe-start.component";
+import { RecipesComponent } from "./recipes.component";
+import { RecipesRoutingModule } from "./recipes-routing.module";
+
+
+@NgModule({
+  declarations: [
+    RecipesComponent,
+    RecipeListComponent,
+    RecipeDetailComponent,
+    RecipeItemComponent,
+    RecipeStartComponent,
+    RecipeEditComponent,
+  ],
+  imports: [
+    RouterModule,
+    CommonModule,
+    ReactiveFormsModule,
+    RecipesRoutingModule
+  ]
+})
+export class RecipesModule {
+
+}
+
+
+##The ShoppingList Feature Module
+
+I feel like I could do this. 
+
+But I'm going to follow along with the video.
+
+So we build 
+shopping-list.module.ts
+
+Add the @NgModule decorator, and switcheroo our declarations and imports from AppModule.
+
+We could create the same shopping-list-routing.module.ts however, since there are not many routes here, we will do it within the module itself for both ease and diversity of demonstration.
+
+@NgModule({
+  ...,
+  imports: [
+    RouterModule.forChild([  
+      { path: 'shopping-list', component: ShoppingListComponent},])
+  ]
+})
+
+BAM!
+
+Remember imports for FormsModule and CommonModule
+
+import { NgModule } from "@angular/core";
+import { ShoppingEditComponent } from "./shopping-edit/shopping-edit.component";
+import { ShoppingListComponent } from "./shopping-list.component";
+import { RouterModule } from "@angular/router";
+import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+
+@NgModule({
+  declarations: [
+    ShoppingListComponent,
+    ShoppingEditComponent
+  ],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule.forChild([
+      { path: 'shopping-list', component: ShoppingListComponent},])
+  ]
+})
+export class ShoppingListModule {}
+
+Easy enough.
+
+##Understanding Shared Modules
+
+What is a shared Module?
+
+A shared module is code that can be imported to multiple modules. It is a good step towards optimization and leaner modules.  For instance the DropdownDirective we are currently having difficulties with trying to import to multiple places. This should remedy that. 
+
+In the shared folder we will create a shared.module.ts
+
+It is possible to have multiple shared modules in whichcase a different naming convention would be justified. 
+
+So the theory is we're importing everything that might be shared, initializing them within the SharedModule, and then exporting those same things.  This gives places where the SharedModule is imported access to the things that were initialized within the SharedModule, and contained within its exports[] array.
+
+You can only *DECLARE* components, directives, and pipes in one module. However you can import a module to mutltiple places. Imports are Okay. Declarations are not. 
+
+So we've got to remove any conflicting declarations from RecipeModule and AppModule.  Import the SharedModule in both, then save and see if our app works.  Fix any tedium that's been overlooked. The finished shared.module.ts file looks like this:
+
+import { NgModule } from "@angular/core";
+import { AlertComponent } from "./alert/alert.component";
+import { LoadingSpinnerComponent } from "./loading-spinner/loading-spinner.component";
+import { PlaceholderDirective } from "./placeholder/placeholder.directive";
+import { DropdownDirective } from "./dropdown.directive";
+import { CommonModule } from "@angular/common";
+
+@NgModule({
+  declarations: [
+    AlertComponent,
+    LoadingSpinnerComponent,
+    PlaceholderDirective,
+    DropdownDirective
+  ],
+  imports: [
+    CommonModule
+  ],
+  exports: [
+    AlertComponent,
+    LoadingSpinnerComponent,
+    PlaceholderDirective,
+    DropdownDirective,
+    CommonModule
+  ]
+})
+export class SharedModule {}
+
+
+##Understanding the Core Module
+
+The third important type of module we will use. 
+
+The CoreModule is really for making AppModule leaner. We can move services out of the AppModule place them in CoreModule and then add those to AppModule. 
+
+We're essentially outsourcing the providers[] array from AppModule.  Now for services where we added the 
+
+@Injectable({providedIn: 'root'})
+
+decorator, then we don't want to put those in the CoreModule because this is like... kind of the same thing done a different way. 
+@Injectable({providedIn: 'root'})
+This is actually the cleanest and most recomendable approach. Still, there are places where there are not alternatives to the providers:[] array such as with Interceptors.  
+
+So we build
+core.module.ts 
+
+At the app level of the directory. This is an ordinary NgModule, following roughly the same pattern as all the others. In this case, we take the providers: array from AppModule and simply add it to the providers: property of CoreModule. We don't export anything from CoreModule- we do however need to import CoreModule to AppModule. The resultant file looks like so:
+
+import { HTTP_INTERCEPTORS } from "@angular/common/http";
+import { NgModule } from "@angular/core";
+import { AuthInterceptorService } from "./auth/auth-interceptor.service";
+import { RecipeService } from "./recipes/recipe.service";
+import { ShoppingListService } from "./shopping-list/shopping-list.service";
+
+@NgModule({
+  providers: [
+    ShoppingListService,
+    RecipeService,
+    {provide: HTTP_INTERCEPTORS, useClass: AuthInterceptorService, multi: true}
+  ]
+})
+export class CoreModule {}
+
+Now that we've outsourced the entire providers:[] from AppModule to CoreModule, we can simply delete the empty array from AppModule. 
+
+
+##Adding an Auth Feature Module
+
+Sweet, I did it on my own and it didn't break. I'll see if Max did it the same way, but here's my working solution:
+
+import { NgModule } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { AuthComponent } from "./auth.component";
+import { RouterModule } from "@angular/router";
+import { SharedModule } from "../shared/shared.module";
+
+@NgModule({
+  declarations: [
+    AuthComponent
+  ],
+  imports: [
+    FormsModule,
+    SharedModule,
+    RouterModule.forChild(
+  [{ path: 'auth', component: AuthComponent}])
+  ],
+  exports: [
+    AuthComponent
+  ]
+})
+export class AuthModule {}
+
+
+##Understanding Lazy Loading
+
+Our first optimization concept. 
+
+So far, our code splitting has been only cosmetic. Nothing we did prior to this has any influence on app performance. Only readibility and maintainability. 
+
+At the moment, when we visit any page we load the entire application. However we'd like to only load the code that belongs to the components that we actually visit.  That means initially we download a very small code bundle, and then we only download the code that we wind up needing. This is the premise of Lazy Loading.
+
+##Implenting Lazy Loading
+
+You can see on the network tab of dev tools the size of .js files we are downloading. Now in the localHost environment, these are larger due to debugging features and so on, but quite generally this is representative of a starting point. We are going to try and decrease these with LazyLoading. 
+
+runtime: 7.0 kB
+polyfills: 342 kB
+vendor: 2.8 MB
+main: 206 kB
+styles: 236 kB
+
+For instance, when we're not authenticated, we should not be downloading the code for RecipesModule. 
+
+To start with, for LazyLoading to work, the feature module needs to have its own routes. We already do that in 
+recipe-routing.module.ts
+
+Here we actually delete the parent route 
+path: 'recipes' 
+
+in favor of 
+path: '' 
+
+Then we go to app-routing.module.ts 
+We add back the path: 'recipes' and then include this 
+
+export const appRoutes: Routes = [
+  { path: '', redirectTo: '/recipes', pathMatch: 'full' },
+  { path: 'recipes', 
+    loadChildren: () => import('./recipes/recipes.module').then(m => m.RecipesModule)}
+]
+
+Now that loadChildren property takes a function that uses import as a method and takes the module path (without the extension). That returns a promise which contains the module that we assign to "m" Then we use m.NameOfModule to extract it. That's essentially what this function does.  
+
+We like, switch a thing in compiler options of
+tsconfig.json
+
+    "module": "ESNext",
+
+That may or may not have been necessary...
+
+And then we have to remove the RecipesComponent from
+app.module.ts
+
+Then, I guess we have to restart ng serve for this to work properly. And finally eventually it compiles correctly and on the network tab, we can see that main.js is ~44 kb smaller and that etc_etc_recipes.js appears when it should and is the missing 44.5 kB file size. Neato.  
+ 
+The downside of lazy loading is you will have to load those components eventually (if the user accesses them) and this can be interuptive to the immersive experience of a web-app, but it saves a significant amount of data upfront. 
+
+
+##More Lazy Loading
+
+Same deal for shopping-list and auth routes. We remove 'shopping-list' and 'auth' in their respecitve module routing statements leaving an empty string ''
+
+Then in app-routing.module.ts we make more cool arrow functions. Here's our whole routes array:
+
+export const appRoutes: Routes = [
+  { path: '', redirectTo: '/recipes', pathMatch: 'full' },
+  { path: 'recipes',
+    loadChildren: () =>
+    import('./recipes/recipes.module').then(m => m.RecipesModule)
+  },
+  { path: 'shopping-list',
+    loadChildren: () =>
+    import('./shopping-list/shopping-list.module').then(m => m.ShoppingListModule)
+  },
+  { path: 'auth',
+    loadChildren: () =>
+    import('./auth/auth.module').then(m => m.AuthModule)
+  },
+];
+
+Neato. 
+
+Remember also to remove these modules and their respective components from app.module.ts because if we don't do this, none of this has any effect. 
+
+Max recommends restarting ng serve when making changes at this level to ensure they have propogated correctly.  Indeed upon restarting ng serve our changes appear to be working correctly. 
+
+
+##Pre-Loading Lazy Loaded Code
+
+Our issue is we have to download code when we need it. Right now this effect is trivial, but in larger apps or slower connections this could make a significant difference in performance. We can tell angular to preload certain aspects of our app. We do this in 
+app-routing.module.ts
+
+@NgModule({
+  imports: [RouterModule.forRoot(appRoutes, {preloadingStrategy: PreloadAllModules})],
+  exports: [RouterModule]
+})
+
+We passed in a second argument to the .forRoot() method, a configuration object where we set preloadingStrategy to PreloadAllModules (which needs to be imported from @angular/router
+
+Currently we load code when we need it.
+
+So here's the deal. This is different than loading everything at once because the modules are still parsed out as different bundles.  It does however mean that they are loaded in "idle time" where the user has landed on the home page, but their pathetic human brain has not yet registered or inputted the next step. So you get a poppy load up front, and then preload all the other modules. The downside of this is that you do load the whole app in cases where the user never engages those other modules.  These behaviors can be further refined in the configuration. 
+
+
+##Modules & Services
+
+What's so special about services anyway?
+
+We can provide services in the app.module, or the app.component, or the other.component, or any eager loaded module, or any lazy-loaded module, or in the root with the @Injectable decorator.
+
+Now providing the service in app.module or root provides the same instance of the service application-wide. This should be your go-to.
+
+Now adding them in an app.component means that instance of the service is only available within that component tree. That also means that sibling components will have access to their own instance of the service and that can be bad, or at least has implications. This is fine or maybe even ideal for services that are only needed here. 
+
+The interesting thing: Adding a service to an eager loaded module results in a singular instance of the service, much in the same way that using app.module or @Injectable for root would. This has to do with how angular bundles things. This should be avoided. Since the result is the same as adding the service in root/app.module it's easier to maintain. 
+
+Different though... Lazy-Loaded Modules get their own instance of the service and the service *is* available only in that loaded module.  Only do this if you WANT a separate instance of the service.   
+
+If you were to provide a service in root and then also provide that same service in a lazy loaded module, then there would still be two separate instances of the service. This may or may not be desirable. 
+
+In short the root injector and the component injector are different. 
+
+The default should be using the root component. Quite generally this is best. If you're doing it anywhere else, make sure you have a strong reason to. 
+
+
+##Loading Services Differently
+
+For the purpose of demonstration of these concepts, we'll make a 
+logging.service.ts
+
+import { Injectable } from "@angular/core";
+
+@Injectable({ providedIn: 'root'})
+export class LoggingService {
+  lastLog:string;
+
+  printLog(message:string) {
+    console.log(message);
+    console.log(this.lastLog);
+    this.lastLog = message;
+  }
+}
+
+A cute little method that prints the message that was passed in. Prints the previous message that was stored. Then sets the message that was passed in to be the new current message (e.g. lastLog).
+
+So injecting the service into app.component and the shopping-list component then summoning it on ngOnInit of both components.  We see this is the same instance by way of the console messages we get from loading ShoppingListComponent
+
+Providing the service in AppModule produces the same result as @Injectable({ providedIn: root }) as expected. 
+
+But providing this in the ShoppingListModule, a lazy-loaded module, produces a separate instance reflected by the log statements. If you need this behavior, great. But if you don't want this behavior... you will get strange bugs...
+
+Also noteworth is that Modules that are imported into a Lazy Loaded Module *WILL PRODUCE A SEPARATE INSTANCE* of a service that is injected. 
+
+This is the commonly encountered bug. 
+
+That is why the best practice is to provide them in the root via @Injectable, or in the app.module.
+
+
+##Ahead-of-Time Compilation
+
+Your code includes syntax that only Angular understands (for instance *ngIf @if lol).  Of course TypeScript compiles your code into JavaScript, but that still includes Angular stuff that isn't Vanilla JavaScript.
+
+Angular Compiler is actually included with an Angular app to interpret this stuff; it's fairly large and compiles template syntax into the JavaScript DOM instructions. 
+
+This is the default and called Just-In-Time compilation.  
+
+However, it doesn't *have* to to be part of your application.
+
+Since ultimately everything is compiled into JavaScript, we can do that ahead of time. This is called
+
+Ahead-Of-Time Compilation
+
+This means it's compiled before the app is deployed and not within the browser. 
+
+Just-In-Time is better for development. 
+
+However, when we prepare our app for production, we want to optimize as much as possible. 
+
+ng build --prod
+
+This command doesn't spin up a development server. It uses Ahead-of-Time compilation. 
+
+Now doing this initially will create an error in our app. That's because Just-In-Time is ultimately more forgiving that the Ahead-of-Time compiler.  
+
+Maybe?  My code looks different at this point. 
+
+I'm gonna look into this tomorrow. My wife is going to be upset if I stay at the coworking space much longer. And this seems fairly abstract. But I am gonna finish this video on double time. 
+
+I think modern angular or vscode through an error on this fix already. 
+
+ng build 
+
+Generates a "dist" folder. These files are significantly smaller than the development files. The Ahead-of-Time optimazation is very important. 
+
+
+##Wrap Up
+
+Yay, modules!
+
+This one was really abstract, but I really enjoyed learning about these optimizations. 
+  
+
+
+

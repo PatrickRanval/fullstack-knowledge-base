@@ -1,0 +1,92 @@
+##Module Introduction
+
+We will be deploying our angular app onto a server. 
+
+
+##Deployment Preparations and Steps
+
+1.) Check Environmental Variables
+
+2.) Polish & Test Code
+
+3.) ng build --prod
+
+4.) Deploy Build Artifacts (generated files) to static host
+
+A static host is a web server that is capable of serving HTML, Javascript, and CSS, but that is not capable of running a server-side language like PHP or NodeJS.  That's because that's all that you need. 
+
+
+##Using Environment Variables
+
+So Angular15+ lacks the environment files by default which has caused much consternation on the web chatter, but long story short
+
+ng generate environments 
+
+builds the folder with environment.development.ts and environement.ts
+
+Anyway, Angular will swap these files out automatically. 
+
+So in... 
+
+environment.ts 
+
+export const environment = {
+  production: true,
+  firebaseAPIKey: '#####'
+};
+
+And then in the developement one, the production property is set to false. So now we import that to the auth.service.ts
+
+import { environment } from "src/environments/environment";
+
+Then use interpolation or whatever to insert environment.firebaseAPIKey wherever it needs to go. 
+
+##Example: Deploying to Firebase Hosting
+
+Based on Code Labs Notes
+
+In package.json append   "type": "module", here:
+
+{
+  "name": "course-projects-basics-code-along",
+  "version": "0.0.0",
+  "type": "module",
+...}
+
+Then in terminal run 
+
+npm run build
+
+This uses ng build to create the "dist" folder in the top level of the project directory. 
+
+Now we're installing firebase tools globally in terminal with this commandnpm fund:
+
+npm i -g firebase-tools@8.12
+
+Now in terminal: 
+
+firebase login
+
+Opens a browser link to login to CLI, which is pretty slick. 
+
+Now in terminal:
+
+firebase init hosting
+
+Some prompts. 
+
+Use an existing project
+
+Select your project
+
+public directory > dist/your-project-name
+
+Configure as single-page app > Yes
+
+Set up automatic builds and deployes with GitHub > Yes
+
+Enter your GitHubUsername followed by your repository name > WilderDev/my-project-on-github
+
+Set up the workflow to run a build script > Yes > Enter > Yes > Enter|
+
+Umm... and then mess with it and get some errors and then get frustrated and mess with it some more after lunch and then eventually it works. 
